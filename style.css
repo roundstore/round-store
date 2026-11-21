@@ -1,0 +1,966 @@
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, "Noto Sans KR", sans-serif;
+    background: #f5f6fa;
+    color: #20243a;
+}
+
+.app {
+    display: flex;
+    min-height: 100vh;
+}
+
+.sidebar {
+    width: 245px;
+    background: #171a2e;
+    color: white;
+    padding: 30px 20px;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 17px;
+    font-weight: bold;
+    margin-bottom: 55px;
+}
+
+.logo-icon {
+    width: 38px;
+    height: 38px;
+    background: linear-gradient(135deg, #8767ff, #6244e8);
+    border-radius: 11px;
+    display: grid;
+    place-items: center;
+    font-size: 21px;
+}
+
+.menu-title {
+    color: #777b96;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    margin-bottom: 15px;
+}
+
+.menu {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+.menu-item {
+    text-decoration: none;
+    color: #a7aac0;
+    padding: 13px 15px;
+    border-radius: 9px;
+    font-size: 14px;
+    transition: 0.2s;
+}
+
+.menu-item:hover,
+.menu-item.active {
+    background: #302b54;
+    color: white;
+}
+
+.sidebar-bottom {
+    margin-top: auto;
+}
+
+.profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-top: 1px solid #34364a;
+    padding-top: 22px;
+    margin-top: 20px;
+}
+
+.profile-icon,
+.avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #6551d9;
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.profile strong,
+.profile small {
+    display: block;
+}
+
+.profile strong {
+    font-size: 13px;
+}
+
+.profile small {
+    color: #888ca7;
+    font-size: 10px;
+    margin-top: 5px;
+}
+
+.main {
+    flex: 1;
+    padding: 35px 42px;
+    min-width: 0;
+}
+
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.topbar h1 {
+    font-size: 27px;
+    margin-bottom: 7px;
+}
+
+.topbar p,
+.panel-header p {
+    color: #9699a9;
+    font-size: 13px;
+}
+
+.topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.status {
+    color: #20a875;
+    font-size: 12px;
+}
+
+.welcome {
+    background: linear-gradient(110deg, #6d55e9, #9474f8);
+    color: white;
+    padding: 30px 35px;
+    border-radius: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    box-shadow: 0 8px 25px #7359e52b;
+}
+
+.welcome h2 {
+    font-size: 21px;
+    margin-bottom: 9px;
+}
+
+.welcome p {
+    color: #e2dcff;
+    font-size: 13px;
+}
+
+.welcome-icon {
+    font-size: 45px;
+    opacity: 0.8;
+}
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 17px;
+    margin-bottom: 22px;
+}
+
+.stat-card,
+.panel {
+    background: white;
+    border: 1px solid #eceef3;
+    border-radius: 13px;
+    box-shadow: 0 3px 12px #20243a08;
+}
+
+.stat-card {
+    padding: 21px;
+}
+
+.stat-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #888b9c;
+    font-size: 12px;
+}
+
+.stat-icon {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    font-weight: bold;
+}
+
+.purple {
+    background: #f0edff;
+    color: #7357e8;
+}
+
+.green {
+    background: #e8f8f0;
+    color: #20a875;
+}
+
+.orange {
+    background: #fff2e5;
+    color: #ee923e;
+}
+
+.blue {
+    background: #eaf2ff;
+    color: #4986e8;
+}
+
+.stat-card h2 {
+    font-size: 25px;
+    margin: 17px 0 8px;
+    overflow-wrap: anywhere;
+}
+
+.stat-card small {
+    color: #a2a4b0;
+    font-size: 11px;
+}
+
+.content-grid {
+    display: grid;
+    grid-template-columns: 1.7fr 1fr;
+    gap: 20px;
+    margin-bottom: 22px;
+}
+
+.panel {
+    padding: 24px;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 22px;
+    gap: 12px;
+}
+
+.panel-header h3 {
+    font-size: 16px;
+    margin-bottom: 7px;
+}
+
+.period,
+.alert-count {
+    background: #f3f1ff;
+    color: #765ce4;
+    border-radius: 7px;
+    padding: 8px 11px;
+    font-size: 11px;
+}
+
+/* 매출 그래프 */
+
+.empty-chart {
+    height: 200px;
+    width: 100%;
+    position: relative;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+}
+
+.empty-chart.has-data {
+    display: block;
+}
+
+.chart-line {
+    position: absolute;
+    width: 100%;
+    height: 1px;
+    background: #eceef4;
+    top: 50%;
+}
+
+.sales-chart-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.sales-chart-grid {
+    stroke: #eceef4;
+    stroke-width: 1;
+}
+
+.sales-chart-area {
+    fill: rgba(112, 87, 232, 0.12);
+    stroke: none;
+}
+
+.sales-chart-line {
+    fill: none;
+    stroke: #7057e8;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.sales-chart-point {
+    fill: #7057e8;
+    stroke: white;
+    stroke-width: 2;
+}
+
+.sales-chart-label {
+    fill: #9699a9;
+    font-size: 10px;
+}
+
+.chart-message {
+    z-index: 1;
+    background: white;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    gap: 9px;
+    padding: 15px;
+}
+
+.chart-message span {
+    color: #9c88f1;
+    font-size: 25px;
+}
+
+.chart-message strong,
+.alert-empty strong {
+    font-size: 12px;
+}
+
+.chart-message small,
+.alert-empty small {
+    color: #a0a2b0;
+    font-size: 11px;
+}
+
+.alert-empty {
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+.alert-empty span {
+    width: 37px;
+    height: 37px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #e7f8ef;
+    color: #20a875;
+    font-size: 18px;
+}
+
+.product-section {
+    margin-bottom: 22px;
+}
+
+.add-button,
+.submit-button {
+    border: none;
+    border-radius: 8px;
+    background: #7057e8;
+    color: white;
+    padding: 11px 17px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.add-button:hover,
+.submit-button:hover {
+    background: #5c43d1;
+    transform: translateY(-1px);
+}
+
+.table-wrap {
+    overflow-x: auto;
+    width: 100%;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    white-space: nowrap;
+}
+
+th {
+    text-align: left;
+    color: #9295a5;
+    font-size: 11px;
+    font-weight: 500;
+    background: #fafafe;
+    padding: 14px;
+}
+
+td {
+    padding: 16px 14px;
+    font-size: 12px;
+    border-bottom: 1px solid #f0f1f5;
+}
+
+tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.edit-button,
+.delete-button {
+    border: none;
+    border-radius: 6px;
+    padding: 7px 11px;
+    cursor: pointer;
+    font-size: 11px;
+    margin-right: 5px;
+}
+
+.edit-button {
+    background: #eeebff;
+    color: #7057e8;
+}
+
+.delete-button {
+    background: #fff0f0;
+    color: #e15b5b;
+}
+
+.modal {
+    position: fixed;
+    inset: 0;
+    background: #10132699;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    padding: 20px;
+}
+
+.modal.show {
+    display: flex;
+}
+
+.modal-box {
+    background: white;
+    width: 100%;
+    max-width: 430px;
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 15px 50px #0002;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.modal-header h2 {
+    font-size: 20px;
+}
+
+.close-button {
+    border: none;
+    background: none;
+    font-size: 27px;
+    color: #9295a5;
+    cursor: pointer;
+}
+
+#product-form {
+    display: flex;
+    flex-direction: column;
+}
+
+#product-form label,
+.inventory-form label {
+    font-size: 12px;
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #50546a;
+}
+
+#product-form input,
+.inventory-form input,
+.inventory-form select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #e5e6ed;
+    border-radius: 8px;
+    margin-bottom: 18px;
+    outline: none;
+    font-size: 13px;
+    background: white;
+}
+
+#product-form input:focus,
+.inventory-form input:focus,
+.inventory-form select:focus {
+    border-color: #8069ed;
+}
+
+.submit-button {
+    margin-top: 7px;
+    padding: 14px;
+}
+
+.inventory-form {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr auto;
+    align-items: end;
+    gap: 13px;
+    margin-bottom: 32px;
+}
+
+.inventory-form > div {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.inventory-form input,
+.inventory-form select {
+    margin-bottom: 0;
+    min-width: 0;
+}
+
+.inventory-form .add-button {
+    height: 41px;
+    white-space: nowrap;
+}
+
+.inventory-history-header {
+    border-top: 1px solid #eff0f5;
+    padding-top: 25px;
+}
+
+footer {
+    text-align: center;
+    color: #b1b3bf;
+    font-size: 11px;
+    padding: 20px;
+}
+
+/* 입출고 기록 관리 버튼 */
+
+.history-action-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+.history-edit-button,
+.history-delete-button {
+    border: none;
+    border-radius: 7px;
+    padding: 7px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.history-edit-button {
+    background: #eeeaff;
+    color: #7255d8;
+}
+
+.history-edit-button:hover {
+    background: #ded5ff;
+}
+
+.history-delete-button {
+    background: #fff0f0;
+    color: #df5555;
+}
+
+.history-delete-button:hover {
+    background: #ffdddd;
+}
+
+/* 입출고 수정 창 */
+
+#inventory-edit-modal {
+    display: none;
+}
+
+#inventory-edit-modal.show {
+    display: flex;
+}
+
+#inventory-edit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#inventory-edit-form label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+}
+
+#inventory-edit-form input,
+#inventory-edit-form select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+}
+
+#inventory-edit-form input:focus,
+#inventory-edit-form select:focus {
+    border-color: #8064e8;
+}
+
+#inventory-edit-form .submit-button {
+    margin-top: 12px;
+}
+
+/* PRO 분석 */
+
+#pro-section {
+    scroll-margin-top: 25px;
+}
+
+#pro-section .welcome {
+    margin-bottom: 22px;
+}
+
+#pro-section .stats {
+    margin-bottom: 22px;
+}
+
+#pro-ranking-list td,
+#pro-inventory-list td {
+    vertical-align: middle;
+}
+
+/* PRO 등급 안내 */
+
+.pro-grade-guide {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 15px 17px;
+    margin-top: 16px;
+    border: 1px solid #eceef3;
+    border-radius: 10px;
+    background: #fafaff;
+    color: #777b8e;
+    font-size: 11px;
+    line-height: 1.7;
+}
+
+.pro-grade-guide strong {
+    color: #34364a;
+    font-size: 12px;
+}
+
+/* PRO 안내 문구 */
+
+.pro-disclaimer {
+    color: #999daf;
+    font-size: 11px;
+    line-height: 1.7;
+    margin-top: 13px;
+}
+
+/* 순위 배지 */
+
+.rank-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    padding: 6px 9px;
+    border-radius: 7px;
+    background: #f0edff;
+    color: #7057e8;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.rank-badge.first {
+    background: #fff4dc;
+    color: #c58b22;
+}
+
+.rank-badge.second {
+    background: #eef1f7;
+    color: #68748b;
+}
+
+.rank-badge.third {
+    background: #fff0e8;
+    color: #c8794a;
+}
+
+/* 매출 기여도 */
+
+.contribution-cell {
+    min-width: 115px;
+}
+
+.contribution-value {
+    display: block;
+    color: #555970;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 7px;
+}
+
+.contribution-track {
+    width: 100%;
+    height: 6px;
+    border-radius: 20px;
+    background: #eeedf5;
+    overflow: hidden;
+}
+
+.contribution-fill {
+    display: block;
+    height: 100%;
+    border-radius: 20px;
+    background: linear-gradient(90deg, #7057e8, #a18cf8);
+    transition: width 0.3s ease;
+}
+
+/* ABC 商品 등급 */
+
+.grade-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    padding: 6px 9px;
+    border-radius: 7px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.grade-a {
+    background: #e7f8ef;
+    color: #159663;
+}
+
+.grade-b {
+    background: #fff3e3;
+    color: #d18a2b;
+}
+
+.grade-c {
+    background: #f0f1f5;
+    color: #85899a;
+}
+
+/* 컨설턴트 */
+
+#pro-consultant {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.consultant-card {
+    padding: 17px 18px;
+    border: 1px solid #eceef3;
+    border-radius: 10px;
+    background: #fcfcff;
+}
+
+.consultant-card strong {
+    display: block;
+    font-size: 13px;
+    margin-bottom: 7px;
+    color: #34364a;
+}
+
+.consultant-card p {
+    color: #777b8e;
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+.consultant-card.warning {
+    border-left: 4px solid #ee923e;
+}
+
+.consultant-card.success {
+    border-left: 4px solid #20a875;
+}
+
+.consultant-card.info {
+    border-left: 4px solid #7057e8;
+}
+
+.consultant-card.danger {
+    border-left: 4px solid #e15b5b;
+}
+
+.pro-empty {
+    color: #999;
+    text-align: center;
+    padding: 25px;
+    font-size: 12px;
+}
+
+.pro-status {
+    display: inline-block;
+    padding: 5px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    background: #f0edff;
+    color: #7057e8;
+}
+
+/* PRO 표 가로 스크롤 */
+
+#pro-section .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+#pro-section table {
+    min-width: 850px;
+}
+
+#pro-section th,
+#pro-section td {
+    padding: 14px 12px;
+}
+
+#pro-section th {
+    font-size: 10px;
+}
+
+#pro-section td {
+    font-size: 11px;
+}
+
+/* 반응형 */
+
+@media (max-width: 1100px) {
+    .stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .inventory-form {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .main {
+        padding: 28px 25px;
+    }
+}
+
+@media (max-width: 750px) {
+    .app {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+        padding: 18px;
+    }
+
+    .logo {
+        margin-bottom: 20px;
+    }
+
+    .menu {
+        flex-direction: row;
+        overflow-x: auto;
+    }
+
+    .menu-item {
+        white-space: nowrap;
+    }
+
+    .menu-title,
+    .sidebar-bottom {
+        display: none;
+    }
+
+    .main {
+        padding: 22px 15px;
+    }
+
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .topbar {
+        align-items: flex-start;
+    }
+
+    .topbar-right .status {
+        display: none;
+    }
+
+    .inventory-form {
+        grid-template-columns: 1fr;
+    }
+
+    .welcome {
+        padding: 23px;
+    }
+
+    .welcome h2 {
+        font-size: 17px;
+    }
+
+    .panel {
+        padding: 17px;
+    }
+
+    .stats {
+        gap: 10px;
+    }
+
+    .stat-card {
+        padding: 15px;
+    }
+
+    .stat-card h2 {
+        font-size: 20px;
+    }
+
+    .pro-grade-guide {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 6px;
+    }
+}
