@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -24,7 +25,6 @@
             <a href="#product-section" class="menu-item">▣ 상품 관리</a>
             <a href="#inventory-section" class="menu-item">▤ 재고 관리</a>
             <a href="#sales-section" class="menu-item">￦ 판매 관리</a>
-            <a href="#pro-section" class="menu-item">✦ PRO 분석</a>
         </nav>
 
         <div class="sidebar-bottom">
@@ -325,167 +325,6 @@
 
                     <tbody id="sales-history"></tbody>
                 </table>
-            </div>
-
-        </section>
-
-        <!-- PRO 분석 -->
-        <section class="product-section" id="pro-section">
-
-            <div class="welcome">
-                <div>
-                    <h2>ROUND STORE PRO ✦</h2>
-                    <p>판매 데이터를 분석하고 더 나은 운영 방향을 찾아보세요.</p>
-                </div>
-                <div class="welcome-icon">✦</div>
-            </div>
-
-            <!-- PRO 요약 -->
-            <div class="stats">
-
-                <div class="stat-card">
-                    <div class="stat-top">
-                        <span>30일 판매 수량</span>
-                        <span class="stat-icon purple">▥</span>
-                    </div>
-                    <h2 id="pro-sales-quantity">0개</h2>
-                    <small>최근 30일 판매 기준</small>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-top">
-                        <span>30일 판매 이익</span>
-                        <span class="stat-icon green">↗</span>
-                    </div>
-                    <h2 id="pro-sales-profit">0원</h2>
-                    <small>등록된 원가 기준 추정치</small>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-top">
-                        <span>재고 부족 상품</span>
-                        <span class="stat-icon orange">!</span>
-                    </div>
-                    <h2 id="pro-low-stock">0개</h2>
-                    <small>재고 확인이 필요한 상품</small>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-top">
-                        <span>판매 상품 수</span>
-                        <span class="stat-icon blue">▣</span>
-                    </div>
-                    <h2 id="pro-active-products">0개</h2>
-                    <small>최근 30일 판매 기록 기준</small>
-                </div>
-
-            </div>
-
-            <!-- 상품별 매출 및 판매량 분석 -->
-            <div class="panel product-section">
-
-                <div class="panel-header">
-                    <div>
-                        <h3>상품별 매출 · 판매량 분석</h3>
-                        <p>최근 30일 기준 상품별 실적과 매출 기여도를 분석합니다.</p>
-                    </div>
-                    <span class="period">TOP 5</span>
-                </div>
-
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>매출 순위</th>
-                                <th>판매량 순위</th>
-                                <th>상품명</th>
-                                <th>매출</th>
-                                <th>매출 기여도</th>
-                                <th>판매 수량</th>
-                                <th>추정 이익</th>
-                                <th>상품 등급</th>
-                            </tr>
-                        </thead>
-
-                        <tbody id="pro-ranking-list">
-                            <tr>
-                                <td colspan="8">분석할 판매 데이터가 없습니다.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="pro-grade-guide">
-                    <h4>ABC 상품 등급 기준</h4>
-                    <p>
-                        매출 기여도를 기준으로 상품을 분류합니다.
-                        A등급은 누적 매출 기여도 상위 80%,
-                        B등급은 다음 15%,
-                        C등급은 나머지 상품입니다.
-                    </p>
-                    <small>
-                        ※ 일반적으로 활용되는 ABC 분석 기준을 적용한 기본 분류입니다.
-                    </small>
-                </div>
-
-            </div>
-
-            <!-- 재고 분석 -->
-            <div class="panel product-section">
-
-                <div class="panel-header">
-                    <div>
-                        <h3>재고 분석</h3>
-                        <p>판매 속도와 현재 재고를 바탕으로 확인합니다.</p>
-                    </div>
-                </div>
-
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>상품명</th>
-                                <th>현재 재고</th>
-                                <th>30일 판매량</th>
-                                <th>하루 평균 판매</th>
-                                <th>예상 재고 소진</th>
-                            </tr>
-                        </thead>
-
-                        <tbody id="pro-inventory-list">
-                            <tr>
-                                <td colspan="5">분석할 데이터가 없습니다.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-            </div>
-
-            <!-- 운영 컨설턴트 -->
-            <div class="panel product-section">
-
-                <div class="panel-header">
-                    <div>
-                        <h3>✦ 운영 컨설턴트</h3>
-                        <p>판매와 재고 데이터를 바탕으로 운영 개선점을 제안합니다.</p>
-                    </div>
-                    <span class="period">규칙 기반 분석</span>
-                </div>
-
-                <div id="pro-consultant">
-                    <div class="alert-empty">
-                        <span>✦</span>
-                        <strong>아직 분석 결과가 없습니다.</strong>
-                        <small>상품과 판매 데이터를 등록하면 운영 제안을 확인할 수 있습니다.</small>
-                    </div>
-                </div>
-
-                <p class="pro-disclaimer">
-                    ※ 현재 컨설턴트는 등록된 데이터를 이용한 규칙 기반 분석입니다.
-                    실제 AI 서비스와 연결된 기능은 아닙니다.
-                </p>
-
             </div>
 
         </section>
