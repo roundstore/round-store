@@ -11,80 +11,269 @@ function createId() {
 }
 
 // ========================================
-// 데이터 불러오기 및 저장
+// 저장소 및 Supabase 설정
 // ========================================
 
-function loadData(key, defaultValue) {
+const SUPABASE_URL = "https://fnhvaepttummlgtpqqzi.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_L8cxzL08LASOjCGt1L9nZA___CVe95I";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+const STORAGE_KEYS = {
+    products: "roundStoreProducts",
+    inventory: "roundStoreInventoryHistory",
+    sales: "roundStoreSalesHistory"
+};
+const SESSION_KEYS = {
+    products: "roundStoreTrialProducts",
+    inventory: "roundStoreTrialInventoryHistory",
+    sales: "roundStoreTrialSalesHistory"
+};
+
+let currentUser = null;
+let storageMode = "locked"; // locked | guest | cloud
+let cloudSaveTimer = null;
+let cloudSaveInProgress = false;
+let cloudSaveAgain = false;
+let products = [];
+let inventoryHistory = [];
+let salesHistory = [];
+
+function parseArray(value) {
     try {
-        const saved = localStorage.getItem(key);
-        return saved ? JSON.parse(saved) : defaultValue;
-    } catch (error) {
-        console.error("데이터 불러오기 실패:", error);
-        return defaultValue;
-    }
+        const parsed = JSON.parse(value || "[]");
+        return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
 }
 
-let products = loadData("roundStoreProducts", []);
-let inventoryHistory = loadData("roundStoreInventoryHistory", []);
-let salesHistory = loadData("roundStoreSalesHistory", []);
+function readGuestData() {
+    return {
+        products: parseArray(sessionStorage.getItem(SESSION_KEYS.products)),
+        inventoryHistory: parseArray(sessionStorage.getItem(SESSION_KEYS.inventory)),
+        salesHistory: parseArray(sessionStorage.getItem(SESSION_KEYS.sales))
+    };
+}
 
-if (!Array.isArray(products)) products = [];
-if (!Array.isArray(inventoryHistory)) inventoryHistory = [];
-if (!Array.isArray(salesHistory)) salesHistory = [];
+function hasAnyData(data) {
+    return data.products.length > 0 || data.inventoryHistory.length > 0 || data.salesHistory.length > 0;
+}
 
-products = products.map(product => ({
-    ...product,
-    price: Number(product.price) || 0,
-    cost: Number(product.cost) || 0,
-    stock: Number(product.stock) || 0
-}));
+function readLegacyBrowserData() {
+    return {
+        products: parseArray(localStorage.getItem(STORAGE_KEYS.products)),
+        inventoryHistory: parseArray(localStorage.getItem(STORAGE_KEYS.inventory)),
+        salesHistory: parseArray(localStorage.getItem(STORAGE_KEYS.sales))
+    };
+}
 
-let editingIndex = null;
-let editingHistoryId = null;
-
-// ========================================
-// 저장 함수
-// ========================================
-
-function saveProducts() {
+function writeGuestData() {
     try {
-        localStorage.setItem("roundStoreProducts", JSON.stringify(products));
+        sessionStorage.setItem(SESSION_KEYS.products, JSON.stringify(products));
+        sessionStorage.setItem(SESSION_KEYS.inventory, JSON.stringify(inventoryHistory));
+        sessionStorage.setItem(SESSION_KEYS.sales, JSON.stringify(salesHistory));
         return true;
     } catch (error) {
-        alert("상품 저장에 실패했습니다.");
-        console.error(error);
+        console.error("무료체험 데이터 저장 실패:", error);
+        alert("임시 저장 공간이 부족합니다. 데이터를 내보내거나 계정에 저장해 주세요.");
         return false;
     }
 }
 
-function saveInventoryHistory() {
-    try {
-        localStorage.setItem("roundStoreInventoryHistory", JSON.stringify(inventoryHistory));
-        return true;
-    } catch (error) {
-        alert("입출고 기록 저장에 실패했습니다.");
-        console.error(error);
-        return false;
-    }
+function scheduleCloudSave() {
+    if (storageMode !== "cloud" || !currentUser) return;
+    clearTimeout(cloudSaveTimer);
+    cloudSaveTimer = setTimeout(saveCloudData, 500);
 }
 
-function saveSalesHistory() {
-    try {
-        localStorage.setItem("roundStoreSalesHistory", JSON.stringify(salesHistory));
-        return true;
-    } catch (error) {
-        alert("판매 기록 저장에 실패했습니다.");
-        console.error(error);
-        return false;
+async function saveCloudData() {
+    if (storageMode !== "cloud" || !currentUser) return;
+    if (cloudSaveInProgress) { cloudSaveAgain = true; return; }
+    cloudSaveInProgress = true;
+    const payload = {
+        user_id: currentUser.id,
+        products,
+        inventory_history: inventoryHistory,
+        sales_history: salesHistory,
+        updated_at: new Date().toISOString()
+    };
+    const { error } = await supabaseClient.from("user_data").upsert(payload, { onConflict: "user_id" });
+    cloudSaveInProgress = false;
+    if (error) {
+        console.error("클라우드 저장 실패:", error);
+        showAuthMessage("저장에 실패했습니다. 인터넷 연결을 확인해 주세요. 다시 변경하면 재시도합니다.", false);
+    } else {
+        const message = $("account-status");
+        if (message) message.textContent = "● 계정에 저장됨";
     }
+    if (cloudSaveAgain) { cloudSaveAgain = false; saveCloudData(); }
 }
 
-function saveAllData() {
-    const a = saveProducts();
-    const b = saveInventoryHistory();
-    const c = saveSalesHistory();
+function persistCurrentData() {
+    if (storageMode === "guest") return writeGuestData();
+    if (storageMode === "cloud") { scheduleCloudSave(); return true; }
+    return false;
+}
 
-    return a && b && c;
+function saveProducts() { return persistCurrentData(); }
+function saveInventoryHistory() { return persistCurrentData(); }
+function saveSalesHistory() { return persistCurrentData(); }
+function saveAllData() { return persistCurrentData(); }
+
+function setData(data) {
+    products = Array.isArray(data.products) ? data.products : [];
+    inventoryHistory = Array.isArray(data.inventoryHistory) ? data.inventoryHistory : [];
+    salesHistory = Array.isArray(data.salesHistory) ? data.salesHistory : [];
+    products = products.map(product => ({
+        ...product,
+        price: Number(product.price) || 0,
+        cost: Number(product.cost) || 0,
+        stock: Number(product.stock) || 0
+    }));
+}
+
+function showAuthMessage(message, success = false) {
+    const el = $("auth-message");
+    if (!el) return;
+    el.textContent = message;
+    el.classList.toggle("success", success);
+}
+
+function showApp(modeLabel) {
+    $("auth-screen")?.classList.add("hidden");
+    $("auth-screen").style.display = "none";
+    $("main-app")?.classList.add("is-active");
+    const status = $("account-status");
+    if (status) status.textContent = modeLabel;
+    const logout = $("logout-button");
+    if (logout) logout.textContent = storageMode === "guest" ? "체험 종료" : "로그아웃";
+    initializeApp();
+}
+
+async function activateUser(user) {
+    currentUser = user;
+    const { data: saved, error } = await supabaseClient
+        .from("user_data")
+        .select("products, inventory_history, sales_history")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+    if (error) {
+        console.error(error);
+        showAuthMessage("계정 데이터를 불러오지 못했습니다. 잠시 후 다시 로그인해 주세요.");
+        await supabaseClient.auth.signOut();
+        return;
+    }
+
+    if (saved) {
+        setData({
+            products: saved.products,
+            inventoryHistory: saved.inventory_history,
+            salesHistory: saved.sales_history
+        });
+        storageMode = "cloud";
+    } else {
+        const guestData = readGuestData();
+        if (hasAnyData(guestData) && confirm("무료체험에서 만든 상품·재고·판매 데이터를 이 계정으로 옮길까요? 기존 계정 데이터가 없을 때만 가져옵니다.")) {
+            setData(guestData);
+        } else {
+            setData({ products: [], inventoryHistory: [], salesHistory: [] });
+        }
+        storageMode = "cloud";
+        await saveCloudData();
+    }
+
+    sessionStorage.removeItem(SESSION_KEYS.products);
+    sessionStorage.removeItem(SESSION_KEYS.inventory);
+    sessionStorage.removeItem(SESSION_KEYS.sales);
+    showAuthMessage("로그인되었습니다.", true);
+    showApp("● 계정 저장 사용 중");
+}
+
+async function startGuestMode() {
+    let guestData = readGuestData();
+    if (!hasAnyData(guestData)) {
+        const legacy = readLegacyBrowserData();
+        if (hasAnyData(legacy)) {
+            guestData = legacy;
+            sessionStorage.setItem(SESSION_KEYS.products, JSON.stringify(legacy.products));
+            sessionStorage.setItem(SESSION_KEYS.inventory, JSON.stringify(legacy.inventoryHistory));
+            sessionStorage.setItem(SESSION_KEYS.sales, JSON.stringify(legacy.salesHistory));
+            showAuthMessage("기존 브라우저 데이터를 무료체험으로 불러왔습니다. 계정에 가입하면 클라우드에 저장할 수 있습니다.", true);
+        }
+    }
+    setData(guestData);
+    storageMode = "guest";
+    showApp("● 무료체험 · 임시 저장");
+}
+
+function setupAuthUI() {
+    let authMode = "login";
+    const loginTab = $("show-login");
+    const signupTab = $("show-signup");
+    const submit = $("auth-submit");
+    const form = $("auth-form");
+
+    function setAuthMode(mode) {
+        authMode = mode;
+        loginTab.classList.toggle("active", mode === "login");
+        signupTab.classList.toggle("active", mode === "signup");
+        submit.textContent = mode === "login" ? "로그인" : "회원가입";
+        $("auth-title").textContent = mode === "login" ? "매장 운영을 더 간편하게" : "ROUND STORE 시작하기";
+        $("auth-password").autocomplete = mode === "login" ? "current-password" : "new-password";
+        showAuthMessage("");
+    }
+
+    loginTab?.addEventListener("click", () => setAuthMode("login"));
+    signupTab?.addEventListener("click", () => setAuthMode("signup"));
+    $("start-guest")?.addEventListener("click", startGuestMode);
+
+    form?.addEventListener("submit", async event => {
+        event.preventDefault();
+        const email = $("auth-email").value.trim();
+        const password = $("auth-password").value;
+        submit.disabled = true;
+        showAuthMessage(authMode === "login" ? "로그인 중..." : "회원가입 처리 중...", true);
+        try {
+            if (authMode === "signup") {
+                const { data, error } = await supabaseClient.auth.signUp({ email, password, options: { emailRedirectTo: "https://roundstore.github.io/round-store/" } });
+                if (error) throw error;
+                if (data.session) await activateUser(data.user);
+                else showAuthMessage("가입 요청이 완료됐습니다. 이메일로 전송된 인증 링크를 확인한 뒤 로그인해 주세요.", true);
+            } else {
+                const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                if (error) throw error;
+                await activateUser(data.user);
+            }
+        } catch (error) {
+            console.error(error);
+            showAuthMessage(error.message || "요청을 처리하지 못했습니다. 입력 내용을 확인해 주세요.");
+        } finally {
+            submit.disabled = false;
+        }
+    });
+
+    $("logout-button")?.addEventListener("click", async () => {
+        if (storageMode === "guest") {
+            sessionStorage.removeItem(SESSION_KEYS.products);
+            sessionStorage.removeItem(SESSION_KEYS.inventory);
+            sessionStorage.removeItem(SESSION_KEYS.sales);
+        } else {
+            await supabaseClient.auth.signOut();
+        }
+        currentUser = null;
+        storageMode = "locked";
+        products = []; inventoryHistory = []; salesHistory = [];
+        $("main-app").classList.remove("is-active");
+        $("auth-screen").style.display = "grid";
+        $("auth-form")?.reset();
+        showAuthMessage("로그아웃되었습니다.", true);
+    });
+}
+
+async function restoreAuthSession() {
+    setupAuthUI();
+    const { data: { session }, error } = await supabaseClient.auth.getSession();
+    if (error) console.error(error);
+    if (session?.user) await activateUser(session.user);
 }
 
 // ========================================
@@ -1774,7 +1963,7 @@ function initializeApp() {
 // ========================================
 
 if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initializeApp);
+    document.addEventListener("DOMContentLoaded", restoreAuthSession);
 } else {
-    initializeApp();
+    restoreAuthSession();
 }
