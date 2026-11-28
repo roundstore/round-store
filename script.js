@@ -1,8 +1,7 @@
-
 // ========================================
 // ROUND STORE - STARTER VERSION
 // 상품 관리 + 재고 관리 + 판매 관리
-// 월별 대시보드 적용 버전
+// 실제 누적 매출 / 실제 누적 이익 대시보드
 // ========================================
 
 const $ = (id) => document.getElementById(id);
@@ -1087,7 +1086,6 @@ function applyAlertStyles() {
         document.head.appendChild(style);
     }
 
-    // HTML에 알림 영역이 없으면 자동 생성
     if (!$("round-alert-area")) {
         const topbar = document.querySelector(".topbar");
 
@@ -1211,7 +1209,7 @@ function renderTopAlerts() {
 }
 
 // ========================================
-// 대시보드 - 월별 통계
+// 대시보드 - 실제 누적 통계
 // ========================================
 
 function updateDashboard() {
@@ -1226,71 +1224,81 @@ function updateDashboard() {
     const month = getCurrentMonthRange();
     const monthSales = getCurrentMonthSales();
 
-    // 이번 달 누적 매출
+    // 이번 달 실제 누적 매출
     const monthRevenue = monthSales.reduce((total, sale) => {
         return total + (
             Number(sale.quantity) * Number(sale.salePrice)
         );
     }, 0);
 
-    // 원가 기록이 있는 판매만으로 이익 계산
-    const monthProfit = monthSales
-        .filter(hasValidCostSnapshot)
-        .reduce((total, sale) => {
-            const cost = Number(sale.costSnapshot);
+    // 전체 기간 실제 누적 매출
+    const allTimeRevenue = salesHistory.reduce((total, sale) => {
+        return total + (
+            Number(sale.quantity) * Number(sale.salePrice)
+        );
+    }, 0);
 
-            return total + (
-                (Number(sale.salePrice) - cost) *
-                Number(sale.quantity)
-            );
-        }, 0);
+    // 원가 기록이 있는 이번 달 판매만 이익 계산
+    const validProfitSales = monthSales.filter(sale => {
+        return hasValidCostSnapshot(sale);
+    });
 
-    // 현재 판매 속도 기준 월말 예상치
-    const estimatedRevenue =
-        month.elapsedDays > 0
-            ? (monthRevenue / month.elapsedDays) * month.totalDays
-            : 0;
+    const monthProfit = validProfitSales.reduce((total, sale) => {
+        const cost = Number(sale.costSnapshot);
 
-    const estimatedProfit =
-        month.elapsedDays > 0
-            ? (monthProfit / month.elapsedDays) * month.totalDays
-            : 0;
+        return total + (
+            (Number(sale.salePrice) - cost) *
+            Number(sale.quantity)
+        );
+    }, 0);
 
-    // 월별 제목 변경
-    if ($("estimated-sales-label")) {
-        $("estimated-sales-label").textContent =
-            `${month.monthLabel} 예상 매출`;
-    }
-
+    // 대시보드 제목
     if ($("month-total-sales-label")) {
         $("month-total-sales-label").textContent =
             `${month.monthLabel} 누적 매출`;
     }
 
-    if ($("estimated-profit-label")) {
-        $("estimated-profit-label").textContent =
-            `${month.monthLabel} 예상 이익`;
+    if ($("all-total-sales-label")) {
+        $("all-total-sales-label").textContent = "전체 누적 매출";
     }
 
-    // 예상 매출
-    if ($("total-sales")) {
-        $("total-sales").textContent = formatMoney(estimatedRevenue);
+    if ($("month-total-profit-label")) {
+        $("month-total-profit-label").textContent =
+            `${month.monthLabel} 누적 이익`;
     }
 
-    // 실제 누적 매출
+    // 이번 달 실제 매출
     if ($("month-total-sales")) {
-        $("month-total-sales").textContent = formatMoney(monthRevenue);
+        $("month-total-sales").textContent =
+            formatMoney(monthRevenue);
     }
 
-    // 예상 이익
+    // 전체 실제 매출
+    if ($("total-sales")) {
+        $("total-sales").textContent =
+            formatMoney(allTimeRevenue);
+    }
+
+    // 이번 달 실제 이익
     if ($("total-profit")) {
-        $("total-profit").textContent = formatMoney(estimatedProfit);
+        $("total-profit").textContent =
+            formatMoney(monthProfit);
     }
 
+    // 이익 계산 기준 안내
+    if ($("month-profit-note")) {
+        $("month-profit-note").textContent =
+            validProfitSales.length > 0
+                ? `원가 기록이 있는 판매 ${validProfitSales.length}건 기준`
+                : "원가 기록이 있는 판매 내역 없음";
+    }
+
+    // 상품 수
     if ($("product-count")) {
         $("product-count").textContent = productCount + "개";
     }
 
+    // 재고 부족 상품 수
     if ($("low-stock")) {
         $("low-stock").textContent = lowStockCount + "개";
     }
@@ -1299,11 +1307,13 @@ function updateDashboard() {
         $("alert-count").textContent = lowStockCount + "건";
     }
 
+    // 대시보드 재고 알림
     const alertEmpty = $("alert-empty");
     const alertList = $("alert-list");
 
     if (alertEmpty) {
-        alertEmpty.style.display = lowStockCount > 0 ? "none" : "flex";
+        alertEmpty.style.display =
+            lowStockCount > 0 ? "none" : "flex";
     }
 
     if (alertList) {
@@ -1311,7 +1321,9 @@ function updateDashboard() {
             alertList.innerHTML = "";
         } else {
             alertList.innerHTML = lowStockProducts.map(product => {
-                const type = product.stock <= 3 ? "danger" : "warning";
+                const type = product.stock <= 3
+                    ? "danger"
+                    : "warning";
 
                 return `
                     <div
@@ -1339,7 +1351,6 @@ function updateDashboard() {
         }
     }
 
-    // Starter 버전에서는 그래프를 호출하지 않음
     renderTopAlerts();
 }
 
@@ -2253,7 +2264,6 @@ function goToInventory(product) {
 // ========================================
 
 function initializeApp() {
-    // 로그인/로그아웃 반복 시 이벤트 중복 등록 방지
     if (appInitialized) {
         renderProducts();
         renderInventoryHistory();
