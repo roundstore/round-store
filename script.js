@@ -1,7 +1,8 @@
+
 // ========================================
-// ROUND STORE - FREE VERSION
+// ROUND STORE - STARTER VERSION
 // 상품 관리 + 재고 관리 + 판매 관리
-// PRO 분석 기능 제거 버전
+// 안정성 개선 버전
 // ========================================
 
 const $ = (id) => document.getElementById(id);
@@ -11,18 +12,23 @@ function createId() {
 }
 
 // ========================================
-// 저장소 및 Supabase 설정
+// Supabase 및 저장소 설정
 // ========================================
 
 const SUPABASE_URL = "https://fnhvaepttummlgtpqqzi.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_L8cxzL08LASOjCGt1L9nZA___CVe95I";
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+const supabaseClient = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+);
 
 const STORAGE_KEYS = {
     products: "roundStoreProducts",
     inventory: "roundStoreInventoryHistory",
     sales: "roundStoreSalesHistory"
 };
+
 const SESSION_KEYS = {
     products: "roundStoreTrialProducts",
     inventory: "roundStoreTrialInventoryHistory",
@@ -30,19 +36,32 @@ const SESSION_KEYS = {
 };
 
 let currentUser = null;
-let storageMode = "locked"; // locked | guest | cloud
+let storageMode = "locked";
+
 let cloudSaveTimer = null;
 let cloudSaveInProgress = false;
 let cloudSaveAgain = false;
+
 let products = [];
 let inventoryHistory = [];
 let salesHistory = [];
+
+let editingIndex = null;
+let editingHistoryId = null;
+
+let appInitialized = false;
+
+// ========================================
+// 데이터 저장 및 불러오기
+// ========================================
 
 function parseArray(value) {
     try {
         const parsed = JSON.parse(value || "[]");
         return Array.isArray(parsed) ? parsed : [];
-    } catch { return []; }
+    } catch {
+        return [];
+    }
 }
 
 function readGuestData() {
@@ -53,10 +72,6 @@ function readGuestData() {
     };
 }
 
-function hasAnyData(data) {
-    return data.products.length > 0 || data.inventoryHistory.length > 0 || data.salesHistory.length > 0;
-}
-
 function readLegacyBrowserData() {
     return {
         products: parseArray(localStorage.getItem(STORAGE_KEYS.products)),
@@ -65,70 +80,19 @@ function readLegacyBrowserData() {
     };
 }
 
-function clearGuestTrialData() {
-    // 현재 탭의 체험 데이터 삭제
-    Object.values(SESSION_KEYS).forEach(key => sessionStorage.removeItem(key));
-    // 구버전에서 localStorage에 저장했던 ROUND STORE 데이터만 삭제
-    Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
+function hasAnyData(data) {
+    return (
+        data.products.length > 0 ||
+        data.inventoryHistory.length > 0 ||
+        data.salesHistory.length > 0
+    );
 }
-
-function writeGuestData() {
-    try {
-        sessionStorage.setItem(SESSION_KEYS.products, JSON.stringify(products));
-        sessionStorage.setItem(SESSION_KEYS.inventory, JSON.stringify(inventoryHistory));
-        sessionStorage.setItem(SESSION_KEYS.sales, JSON.stringify(salesHistory));
-        return true;
-    } catch (error) {
-        console.error("무료체험 데이터 저장 실패:", error);
-        alert("임시 저장 공간이 부족합니다. 데이터를 내보내거나 계정에 저장해 주세요.");
-        return false;
-    }
-}
-
-function scheduleCloudSave() {
-    if (storageMode !== "cloud" || !currentUser) return;
-    clearTimeout(cloudSaveTimer);
-    cloudSaveTimer = setTimeout(saveCloudData, 500);
-}
-
-async function saveCloudData() {
-    if (storageMode !== "cloud" || !currentUser) return;
-    if (cloudSaveInProgress) { cloudSaveAgain = true; return; }
-    cloudSaveInProgress = true;
-    const payload = {
-        user_id: currentUser.id,
-        products,
-        inventory_history: inventoryHistory,
-        sales_history: salesHistory,
-        updated_at: new Date().toISOString()
-    };
-    const { error } = await supabaseClient.from("user_data").upsert(payload, { onConflict: "user_id" });
-    cloudSaveInProgress = false;
-    if (error) {
-        console.error("클라우드 저장 실패:", error);
-        showAuthMessage("저장에 실패했습니다. 인터넷 연결을 확인해 주세요. 다시 변경하면 재시도합니다.", false);
-    } else {
-        const message = $("account-status");
-        if (message) message.textContent = "● 계정에 저장됨";
-    }
-    if (cloudSaveAgain) { cloudSaveAgain = false; saveCloudData(); }
-}
-
-function persistCurrentData() {
-    if (storageMode === "guest") return writeGuestData();
-    if (storageMode === "cloud") { scheduleCloudSave(); return true; }
-    return false;
-}
-
-function saveProducts() { return persistCurrentData(); }
-function saveInventoryHistory() { return persistCurrentData(); }
-function saveSalesHistory() { return persistCurrentData(); }
-function saveAllData() { return persistCurrentData(); }
 
 function setData(data) {
     products = Array.isArray(data.products) ? data.products : [];
     inventoryHistory = Array.isArray(data.inventoryHistory) ? data.inventoryHistory : [];
     salesHistory = Array.isArray(data.salesHistory) ? data.salesHistory : [];
+
     products = products.map(product => ({
         ...product,
         price: Number(product.price) || 0,
@@ -137,26 +101,166 @@ function setData(data) {
     }));
 }
 
+function writeGuestData() {
+    try {
+        sessionStorage.setItem(SESSION_KEYS.products, JSON.stringify(products));
+        sessionStorage.setItem(SESSION_KEYS.inventory, JSON.stringify(inventoryHistory));
+        sessionStorage.setItem(SESSION_KEYS.sales, JSON.stringify(salesHistory));
+
+        return true;
+    } catch (error) {
+        console.error("무료체험 데이터 저장 실패:", error);
+        alert("임시 저장 공간이 부족합니다. 데이터를 내보내거나 계정에 저장해 주세요.");
+        return false;
+    }
+}
+
+function persistCurrentData() {
+    if (storageMode === "guest") {
+        return writeGuestData();
+    }
+
+    if (storageMode === "cloud") {
+        scheduleCloudSave();
+        return true;
+    }
+
+    return false;
+}
+
+function saveProducts() {
+    return persistCurrentData();
+}
+
+function saveInventoryHistory() {
+    return persistCurrentData();
+}
+
+function saveSalesHistory() {
+    return persistCurrentData();
+}
+
+function saveAllData() {
+    return persistCurrentData();
+}
+
+// ========================================
+// 클라우드 저장
+// ========================================
+
+function scheduleCloudSave() {
+    if (storageMode !== "cloud" || !currentUser) return;
+
+    clearTimeout(cloudSaveTimer);
+
+    cloudSaveTimer = setTimeout(() => {
+        saveCloudData();
+    }, 500);
+}
+
+async function saveCloudData() {
+    if (storageMode !== "cloud" || !currentUser) return;
+
+    if (cloudSaveInProgress) {
+        cloudSaveAgain = true;
+        return;
+    }
+
+    cloudSaveInProgress = true;
+
+    const userId = currentUser.id;
+
+    const payload = {
+        user_id: userId,
+        products: JSON.parse(JSON.stringify(products)),
+        inventory_history: JSON.parse(JSON.stringify(inventoryHistory)),
+        sales_history: JSON.parse(JSON.stringify(salesHistory)),
+        updated_at: new Date().toISOString()
+    };
+
+    let saveError = null;
+
+    try {
+        const { error } = await supabaseClient
+            .from("user_data")
+            .upsert(payload, { onConflict: "user_id" });
+
+        saveError = error;
+    } catch (error) {
+        saveError = error;
+    }
+
+    cloudSaveInProgress = false;
+
+    if (currentUser?.id === userId && storageMode === "cloud") {
+        if (saveError) {
+            console.error("클라우드 저장 실패:", saveError);
+
+            const status = $("account-status");
+            if (status) status.textContent = "● 저장 오류";
+
+            showAuthMessage(
+                "저장에 실패했습니다. 인터넷 연결을 확인해 주세요. 다시 변경하면 재시도합니다.",
+                false
+            );
+        } else {
+            const status = $("account-status");
+            if (status) status.textContent = "● 계정에 저장됨";
+        }
+    }
+
+    if (cloudSaveAgain) {
+        cloudSaveAgain = false;
+
+        if (storageMode === "cloud" && currentUser) {
+            saveCloudData();
+        }
+    }
+}
+
+// ========================================
+// 인증 메시지
+// ========================================
+
 function showAuthMessage(message, success = false) {
     const el = $("auth-message");
+
     if (!el) return;
+
     el.textContent = message;
     el.classList.toggle("success", success);
 }
 
 function showApp(modeLabel) {
-    $("auth-screen")?.classList.add("hidden");
-    $("auth-screen").style.display = "none";
-    $("main-app")?.classList.add("is-active");
+    const authScreen = $("auth-screen");
+    const mainApp = $("main-app");
+
+    if (authScreen) {
+        authScreen.classList.add("hidden");
+        authScreen.style.display = "none";
+    }
+
+    mainApp?.classList.add("is-active");
+
     const status = $("account-status");
     if (status) status.textContent = modeLabel;
+
     const logout = $("logout-button");
-    if (logout) logout.textContent = storageMode === "guest" ? "체험 종료" : "로그아웃";
+
+    if (logout) {
+        logout.textContent = storageMode === "guest" ? "체험 종료" : "로그아웃";
+    }
+
     initializeApp();
 }
 
+// ========================================
+// 회원 계정 활성화
+// ========================================
+
 async function activateUser(user) {
     currentUser = user;
+
     const { data: saved, error } = await supabaseClient
         .from("user_data")
         .select("products, inventory_history, sales_history")
@@ -165,8 +269,14 @@ async function activateUser(user) {
 
     if (error) {
         console.error(error);
+
         showAuthMessage("계정 데이터를 불러오지 못했습니다. 잠시 후 다시 로그인해 주세요.");
+
+        currentUser = null;
+        storageMode = "locked";
+
         await supabaseClient.auth.signOut();
+
         return;
     }
 
@@ -176,35 +286,75 @@ async function activateUser(user) {
             inventoryHistory: saved.inventory_history,
             salesHistory: saved.sales_history
         });
+
         storageMode = "cloud";
     } else {
         const guestData = readGuestData();
-        if (hasAnyData(guestData) && confirm("무료체험에서 만든 상품·재고·판매 데이터를 이 계정으로 옮길까요? 기존 계정 데이터가 없을 때만 가져옵니다.")) {
+
+        if (
+            hasAnyData(guestData) &&
+            confirm("무료체험에서 만든 상품·재고·판매 데이터를 이 계정으로 옮길까요?")
+        ) {
             setData(guestData);
         } else {
-            setData({ products: [], inventoryHistory: [], salesHistory: [] });
+            setData({
+                products: [],
+                inventoryHistory: [],
+                salesHistory: []
+            });
         }
+
         storageMode = "cloud";
+
         await saveCloudData();
     }
 
     sessionStorage.removeItem(SESSION_KEYS.products);
     sessionStorage.removeItem(SESSION_KEYS.inventory);
     sessionStorage.removeItem(SESSION_KEYS.sales);
+
     showAuthMessage("로그인되었습니다.", true);
     showApp("● 계정 저장 사용 중");
 }
 
+// ========================================
+// 무료체험 시작
+// ========================================
+
 async function startGuestMode() {
-    // 새 무료체험은 이전 체험 데이터나 과거 브라우저 데이터를 불러오지 않고 빈 상태로 시작
-    clearGuestTrialData();
-    setData({ products: [], inventoryHistory: [], salesHistory: [] });
+    let guestData = readGuestData();
+
+    if (!hasAnyData(guestData)) {
+        const legacy = readLegacyBrowserData();
+
+        if (hasAnyData(legacy)) {
+            guestData = legacy;
+
+            sessionStorage.setItem(SESSION_KEYS.products, JSON.stringify(legacy.products));
+            sessionStorage.setItem(SESSION_KEYS.inventory, JSON.stringify(legacy.inventoryHistory));
+            sessionStorage.setItem(SESSION_KEYS.sales, JSON.stringify(legacy.salesHistory));
+
+            showAuthMessage(
+                "기존 브라우저 데이터를 무료체험으로 불러왔습니다. 가입하면 계정에 저장할 수 있습니다.",
+                true
+            );
+        }
+    }
+
+    setData(guestData);
+
     storageMode = "guest";
+
     showApp("● 무료체험 · 임시 저장");
 }
 
+// ========================================
+// 회원가입 및 로그인
+// ========================================
+
 function setupAuthUI() {
     let authMode = "login";
+
     const loginTab = $("show-login");
     const signupTab = $("show-signup");
     const submit = $("auth-submit");
@@ -212,64 +362,150 @@ function setupAuthUI() {
 
     function setAuthMode(mode) {
         authMode = mode;
-        loginTab.classList.toggle("active", mode === "login");
-        signupTab.classList.toggle("active", mode === "signup");
-        submit.textContent = mode === "login" ? "로그인" : "회원가입";
-        $("auth-title").textContent = mode === "login" ? "매장 운영을 더 간편하게" : "ROUND STORE 시작하기";
-        $("auth-password").autocomplete = mode === "login" ? "current-password" : "new-password";
+
+        loginTab?.classList.toggle("active", mode === "login");
+        signupTab?.classList.toggle("active", mode === "signup");
+
+        if (submit) {
+            submit.textContent = mode === "login" ? "로그인" : "회원가입";
+        }
+
+        if ($("auth-title")) {
+            $("auth-title").textContent =
+                mode === "login"
+                    ? "매장 운영을 더 간편하게"
+                    : "ROUND STORE 시작하기";
+        }
+
+        if ($("auth-password")) {
+            $("auth-password").autocomplete =
+                mode === "login" ? "current-password" : "new-password";
+        }
+
         showAuthMessage("");
     }
 
     loginTab?.addEventListener("click", () => setAuthMode("login"));
     signupTab?.addEventListener("click", () => setAuthMode("signup"));
+
     $("start-guest")?.addEventListener("click", startGuestMode);
 
     form?.addEventListener("submit", async event => {
         event.preventDefault();
-        const email = $("auth-email").value.trim();
-        const password = $("auth-password").value;
+        event.stopPropagation();
+
+        if (!submit) return;
+
+        const email = $("auth-email")?.value.trim();
+        const password = $("auth-password")?.value;
+
+        if (!email || !password) {
+            showAuthMessage("이메일과 비밀번호를 입력해 주세요.");
+            return;
+        }
+
         submit.disabled = true;
-        showAuthMessage(authMode === "login" ? "로그인 중..." : "회원가입 처리 중...", true);
+
+        showAuthMessage(
+            authMode === "login" ? "로그인 중..." : "회원가입 처리 중...",
+            true
+        );
+
         try {
             if (authMode === "signup") {
-                const { data, error } = await supabaseClient.auth.signUp({ email, password, options: { emailRedirectTo: "https://roundstore.github.io/round-store/" } });
+                const { data, error } = await supabaseClient.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        emailRedirectTo: "https://roundstore.github.io/round-store/"
+                    }
+                });
+
                 if (error) throw error;
-                if (data.session) await activateUser(data.user);
-                else showAuthMessage("가입 요청이 완료됐습니다. 이메일로 전송된 인증 링크를 확인한 뒤 로그인해 주세요.", true);
+
+                if (data.session && data.user) {
+                    await activateUser(data.user);
+                } else {
+                    showAuthMessage(
+                        "가입 요청이 완료됐습니다. 이메일 인증 링크를 확인한 뒤 로그인해 주세요.",
+                        true
+                    );
+                }
             } else {
-                const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email,
+                    password
+                });
+
                 if (error) throw error;
+
                 await activateUser(data.user);
             }
         } catch (error) {
             console.error(error);
-            showAuthMessage(error.message || "요청을 처리하지 못했습니다. 입력 내용을 확인해 주세요.");
+
+            showAuthMessage(
+                error.message || "요청을 처리하지 못했습니다. 입력 내용을 확인해 주세요."
+            );
         } finally {
             submit.disabled = false;
         }
     });
 
     $("logout-button")?.addEventListener("click", async () => {
+        clearTimeout(cloudSaveTimer);
+
         if (storageMode === "guest") {
-            clearGuestTrialData();
+            sessionStorage.removeItem(SESSION_KEYS.products);
+            sessionStorage.removeItem(SESSION_KEYS.inventory);
+            sessionStorage.removeItem(SESSION_KEYS.sales);
         } else {
             await supabaseClient.auth.signOut();
         }
+
         currentUser = null;
         storageMode = "locked";
-        products = []; inventoryHistory = []; salesHistory = [];
-        $("main-app").classList.remove("is-active");
-        $("auth-screen").style.display = "grid";
+
+        products = [];
+        inventoryHistory = [];
+        salesHistory = [];
+
+        const mainApp = $("main-app");
+        const authScreen = $("auth-screen");
+
+        mainApp?.classList.remove("is-active");
+
+        if (authScreen) {
+            authScreen.style.display = "grid";
+            authScreen.classList.remove("hidden");
+        }
+
         $("auth-form")?.reset();
+
         showAuthMessage("로그아웃되었습니다.", true);
     });
 }
 
+// ========================================
+// 기존 로그인 복구
+// ========================================
+
 async function restoreAuthSession() {
     setupAuthUI();
-    const { data: { session }, error } = await supabaseClient.auth.getSession();
-    if (error) console.error(error);
-    if (session?.user) await activateUser(session.user);
+
+    const {
+        data: { session },
+        error
+    } = await supabaseClient.auth.getSession();
+
+    if (error) {
+        console.error(error);
+        return;
+    }
+
+    if (session?.user) {
+        await activateUser(session.user);
+    }
 }
 
 // ========================================
@@ -296,8 +532,10 @@ function escapeHTML(value) {
 
 function getThirtyDayStart() {
     const date = new Date();
+
     date.setHours(0, 0, 0, 0);
     date.setDate(date.getDate() - 29);
+
     return date.getTime();
 }
 
@@ -307,6 +545,7 @@ function getRecentSales() {
 
     return salesHistory.filter(sale => {
         const createdAt = Number(sale.createdAt) || 0;
+
         return createdAt >= start && createdAt <= now;
     });
 }
@@ -347,10 +586,12 @@ function migrateExistingData() {
         }
 
         history.quantity = Number(history.quantity) || 0;
+
         history.type = history.type === "in" ? "in" : "out";
 
         if (history.type === "out" && history.salePrice === undefined) {
             const product = products.find(item => item.id === history.productId);
+
             history.salePrice = product ? product.price : 0;
             changed = true;
         }
@@ -393,16 +634,21 @@ function migrateExistingData() {
 
             const salesMovement = salesHistory
                 .filter(sale => sale.productId === product.id)
-                .reduce((total, sale) => total + Number(sale.quantity), 0);
+                .reduce((total, sale) => {
+                    return total + Number(sale.quantity);
+                }, 0);
 
             product.baseStock = product.stock - inventoryMovement + salesMovement;
+
             changed = true;
         } else {
             product.baseStock = Number(product.baseStock) || 0;
         }
     });
 
-    if (changed) saveAllData();
+    if (changed) {
+        saveAllData();
+    }
 }
 
 // ========================================
@@ -410,27 +656,37 @@ function migrateExistingData() {
 // ========================================
 
 function recalculateProductStocks() {
+    const stockMap = new Map();
+
     products.forEach(product => {
-        product.stock = Number(product.baseStock) || 0;
+        stockMap.set(product.id, Number(product.baseStock) || 0);
     });
 
     const events = [
-        ...inventoryHistory.map(history => ({
+        ...inventoryHistory.map((history, index) => ({
             ...history,
-            eventType: "inventory"
+            eventType: "inventory",
+            originalIndex: index
         })),
-        ...salesHistory.map(sale => ({
+
+        ...salesHistory.map((sale, index) => ({
             ...sale,
-            eventType: "sale"
+            eventType: "sale",
+            originalIndex: index
         }))
     ].sort((a, b) => {
-        return Number(a.createdAt) - Number(b.createdAt);
+        const timeDifference = Number(a.createdAt) - Number(b.createdAt);
+
+        if (timeDifference !== 0) return timeDifference;
+
+        return a.eventType.localeCompare(b.eventType);
     });
 
-    for (const event of events) {
-        const product = products.find(item => item.id === event.productId);
+    const inventoryStockAfter = new Map();
+    const salesStockAfter = new Map();
 
-        if (!product) continue;
+    for (const event of events) {
+        if (!stockMap.has(event.productId)) continue;
 
         const quantity = Number(event.quantity);
 
@@ -438,26 +694,44 @@ function recalculateProductStocks() {
             return false;
         }
 
+        let stock = stockMap.get(event.productId);
+
         if (event.eventType === "sale") {
-            product.stock -= quantity;
+            stock -= quantity;
         } else if (event.type === "in") {
-            product.stock += quantity;
+            stock += quantity;
         } else if (event.type === "out") {
-            product.stock -= quantity;
+            stock -= quantity;
         } else {
             return false;
         }
 
-        if (product.stock < 0) return false;
+        if (stock < 0) return false;
+
+        stockMap.set(event.productId, stock);
 
         if (event.eventType === "sale") {
-            const original = salesHistory.find(item => item.id === event.id);
-            if (original) original.stockAfter = product.stock;
+            salesStockAfter.set(event.id, stock);
         } else {
-            const original = inventoryHistory.find(item => item.id === event.id);
-            if (original) original.stockAfter = product.stock;
+            inventoryStockAfter.set(event.id, stock);
         }
     }
+
+    products.forEach(product => {
+        product.stock = stockMap.get(product.id) ?? 0;
+    });
+
+    inventoryHistory.forEach(history => {
+        if (inventoryStockAfter.has(history.id)) {
+            history.stockAfter = inventoryStockAfter.get(history.id);
+        }
+    });
+
+    salesHistory.forEach(sale => {
+        if (salesStockAfter.has(sale.id)) {
+            sale.stockAfter = salesStockAfter.get(sale.id);
+        }
+    });
 
     return true;
 }
@@ -468,7 +742,6 @@ function recalculateProductStocks() {
 
 function setupNavigation() {
     const menuItems = document.querySelectorAll(".menu-item");
-
     const pageTitle = $("page-title");
 
     const titles = {
@@ -495,6 +768,7 @@ function setupNavigation() {
             event.preventDefault();
 
             menuItems.forEach(menu => menu.classList.remove("active"));
+
             item.classList.add("active");
 
             if (pageTitle) {
@@ -515,18 +789,19 @@ function setupNavigation() {
 
 function updateInventoryOptions() {
     const select = $("inventory-product");
+
     if (!select) return;
 
     const previousValue = select.value;
 
-    select.innerHTML = `
-        <option value="">상품을 선택하세요</option>
-    `;
+    select.innerHTML = `<option value="">상품을 선택하세요</option>`;
 
     products.forEach(product => {
         const option = document.createElement("option");
+
         option.value = product.id;
         option.textContent = product.name;
+
         select.appendChild(option);
     });
 
@@ -537,18 +812,19 @@ function updateInventoryOptions() {
 
 function updateSalesOptions() {
     const select = $("sales-product");
+
     if (!select) return;
 
     const previousValue = select.value;
 
-    select.innerHTML = `
-        <option value="">상품을 선택하세요</option>
-    `;
+    select.innerHTML = `<option value="">상품을 선택하세요</option>`;
 
     products.forEach(product => {
         const option = document.createElement("option");
+
         option.value = product.id;
         option.textContent = product.name;
+
         select.appendChild(option);
     });
 
@@ -588,209 +864,219 @@ function updateSalesTotal() {
 }
 
 // ========================================
-// 재고 알림
+// 재고 알림 스타일 및 영역
 // ========================================
 
 function applyAlertStyles() {
-    if ($("round-store-alert-styles")) return;
+    if (!$("round-store-alert-styles")) {
+        const style = document.createElement("style");
 
-    const style = document.createElement("style");
-    style.id = "round-store-alert-styles";
+        style.id = "round-store-alert-styles";
 
-    style.textContent = `
-        @media (min-width: 751px) {
-            .sidebar {
-                position: fixed;
-                top: 0;
-                left: 0;
-                height: 100vh;
-                min-height: 100vh;
-                overflow-y: auto;
-                z-index: 100;
+        style.textContent = `
+            @media (min-width: 751px) {
+                .sidebar {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    height: 100vh;
+                    min-height: 100vh;
+                    overflow-y: auto;
+                    z-index: 100;
+                }
+
+                .main {
+                    margin-left: 245px;
+                    width: calc(100% - 245px);
+                }
             }
 
-            .main {
-                margin-left: 245px;
-                width: calc(100% - 245px);
-            }
-        }
-
-        .topbar {
-            position: sticky;
-            top: 0;
-            z-index: 90;
-            background: #f5f6fa;
-            padding-top: 12px;
-            padding-bottom: 12px;
-        }
-
-        .round-alert-area {
-            margin-top: 12px;
-            margin-bottom: 8px;
-            width: 100%;
-        }
-
-        .round-alert-toggle {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            width: 100%;
-            border: 1px solid #e1e4ed;
-            border-radius: 11px;
-            padding: 12px 15px;
-            background: #ffffff;
-            color: #30364a;
-            font-size: 13px;
-            font-weight: 800;
-            cursor: pointer;
-            text-align: left;
-        }
-
-        .round-alert-toggle.danger {
-            background: #fff5f5;
-            border-color: #f0cccc;
-            color: #c73535;
-        }
-
-        .round-alert-toggle.urgent {
-            background: #fff8f2;
-            border-color: #f0d8c5;
-            color: #c45b1d;
-        }
-
-        .round-alert-toggle.warning {
-            background: #fffbee;
-            border-color: #f0e5bd;
-            color: #947014;
-        }
-
-        .round-alert-toggle.safe {
-            background: #effaf3;
-            border-color: #d4ecdc;
-            color: #23845f;
-        }
-
-        .round-alert-summary {
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 7px;
-        }
-
-        .round-alert-chevron {
-            flex: 0 0 auto;
-            font-size: 16px;
-            transition: transform 0.2s;
-        }
-
-        .round-alert-toggle[aria-expanded="true"] .round-alert-chevron {
-            transform: rotate(180deg);
-        }
-
-        .round-alert-details {
-            display: none;
-            margin-top: 8px;
-            max-height: 220px;
-            overflow-y: auto;
-            border: 1px solid #e4e6ed;
-            border-radius: 11px;
-            padding: 10px;
-            background: #ffffff;
-        }
-
-        .round-alert-details.open {
-            display: block;
-        }
-
-        .round-alert-group {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .round-alert-group-title {
-            padding: 3px 4px;
-            font-size: 11px;
-            font-weight: 800;
-            color: #70768a;
-        }
-
-        .round-alert-product {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            width: 100%;
-            border: 1px solid #e7e9ef;
-            border-radius: 8px;
-            padding: 10px 12px;
-            background: #ffffff;
-            color: #34394b;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            text-align: left;
-        }
-
-        .round-alert-product.danger {
-            color: #c73535;
-        }
-
-        .round-alert-product.urgent {
-            color: #c45b1d;
-        }
-
-        .round-alert-product.warning {
-            color: #947014;
-        }
-
-        .round-alert-product-name {
-            overflow-wrap: anywhere;
-        }
-
-        .round-alert-stock {
-            flex: 0 0 auto;
-            white-space: nowrap;
-            font-weight: 800;
-        }
-
-        .round-alert-empty {
-            font-size: 12px;
-            font-weight: 700;
-        }
-
-        .dashboard-alert-item {
-            cursor: pointer;
-        }
-
-        section[id] {
-            scroll-margin-top: 25px;
-        }
-
-        @media (max-width: 750px) {
             .topbar {
-                padding-top: 8px;
-                padding-bottom: 8px;
+                position: sticky;
+                top: 0;
+                z-index: 90;
+                background: #f5f6fa;
+                padding-top: 12px;
+                padding-bottom: 12px;
+            }
+
+            .round-alert-area {
+                margin-top: 12px;
+                margin-bottom: 8px;
+                width: 100%;
             }
 
             .round-alert-toggle {
-                padding: 10px 12px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                width: 100%;
+                border: 1px solid #e1e4ed;
+                border-radius: 11px;
+                padding: 12px 15px;
+                background: #fff;
+                color: #30364a;
+                font-size: 13px;
+                font-weight: 800;
+                cursor: pointer;
+                text-align: left;
             }
-        }
-    `;
 
-    document.head.appendChild(style);
+            .round-alert-toggle.danger {
+                background: #fff5f5;
+                border-color: #f0cccc;
+                color: #c73535;
+            }
+
+            .round-alert-toggle.urgent {
+                background: #fff8f2;
+                border-color: #f0d8c5;
+                color: #c45b1d;
+            }
+
+            .round-alert-toggle.warning {
+                background: #fffbee;
+                border-color: #f0e5bd;
+                color: #947014;
+            }
+
+            .round-alert-toggle.safe {
+                background: #effaf3;
+                border-color: #d4ecdc;
+                color: #23845f;
+            }
+
+            .round-alert-summary {
+                display: flex;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 7px;
+            }
+
+            .round-alert-chevron {
+                flex: 0 0 auto;
+                font-size: 16px;
+                transition: transform .2s;
+            }
+
+            .round-alert-toggle[aria-expanded="true"] .round-alert-chevron {
+                transform: rotate(180deg);
+            }
+
+            .round-alert-details {
+                display: none;
+                margin-top: 8px;
+                max-height: 220px;
+                overflow-y: auto;
+                border: 1px solid #e4e6ed;
+                border-radius: 11px;
+                padding: 10px;
+                background: #fff;
+            }
+
+            .round-alert-details.open {
+                display: block;
+            }
+
+            .round-alert-group {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+            }
+
+            .round-alert-group-title {
+                padding: 3px 4px;
+                font-size: 11px;
+                font-weight: 800;
+                color: #70768a;
+            }
+
+            .round-alert-product {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                width: 100%;
+                border: 1px solid #e7e9ef;
+                border-radius: 8px;
+                padding: 10px 12px;
+                background: #fff;
+                color: #34394b;
+                font-size: 12px;
+                font-weight: 600;
+                cursor: pointer;
+                text-align: left;
+            }
+
+            .round-alert-product.danger { color: #c73535; }
+            .round-alert-product.urgent { color: #c45b1d; }
+            .round-alert-product.warning { color: #947014; }
+
+            .round-alert-product-name {
+                overflow-wrap: anywhere;
+            }
+
+            .round-alert-stock {
+                flex: 0 0 auto;
+                white-space: nowrap;
+                font-weight: 800;
+            }
+
+            .round-alert-empty {
+                font-size: 12px;
+                font-weight: 700;
+            }
+
+            .dashboard-alert-item {
+                cursor: pointer;
+            }
+
+            section[id] {
+                scroll-margin-top: 25px;
+            }
+
+            @media (max-width: 750px) {
+                .topbar {
+                    padding-top: 8px;
+                    padding-bottom: 8px;
+                }
+
+                .round-alert-toggle {
+                    padding: 10px 12px;
+                }
+            }
+        `;
+
+        document.head.appendChild(style);
+    }
+
+    // HTML에 알림 영역이 없으면 자동 생성
+    if (!$("round-alert-area")) {
+        const topbar = document.querySelector(".topbar");
+
+        if (topbar) {
+            const area = document.createElement("div");
+
+            area.id = "round-alert-area";
+            area.className = "round-alert-area";
+
+            topbar.insertAdjacentElement("afterend", area);
+        }
+    }
 }
+
 function getAlertLevel(product) {
     if (product.stock <= 0) return "danger";
     if (product.stock <= 3) return "urgent";
     if (product.stock <= 5) return "warning";
+
     return "safe";
 }
 
 function renderTopAlerts() {
     const area = $("round-alert-area");
+
     if (!area) return;
 
     const alertProducts = products
@@ -798,8 +1084,14 @@ function renderTopAlerts() {
         .sort((a, b) => a.stock - b.stock);
 
     const dangerCount = alertProducts.filter(product => product.stock <= 0).length;
-    const urgentCount = alertProducts.filter(product => product.stock > 0 && product.stock <= 3).length;
-    const warningCount = alertProducts.filter(product => product.stock > 3 && product.stock <= 5).length;
+
+    const urgentCount = alertProducts.filter(product => {
+        return product.stock > 0 && product.stock <= 3;
+    }).length;
+
+    const warningCount = alertProducts.filter(product => {
+        return product.stock > 3 && product.stock <= 5;
+    }).length;
 
     let level = "safe";
     let summary = "재고 상태가 정상입니다.";
@@ -827,6 +1119,7 @@ function renderTopAlerts() {
                 <span>재고 알림</span>
                 <span>${summary}</span>
             </span>
+
             <span class="round-alert-chevron">⌄</span>
         </button>
 
@@ -836,15 +1129,23 @@ function renderTopAlerts() {
                     ? `<div class="round-alert-empty">현재 재고 부족 상품이 없습니다.</div>`
                     : `
                         <div class="round-alert-group">
-                            <div class="round-alert-group-title">재고 확인이 필요한 상품</div>
+                            <div class="round-alert-group-title">
+                                재고 확인이 필요한 상품
+                            </div>
+
                             ${alertProducts.map(product => `
                                 <button
                                     type="button"
                                     class="round-alert-product ${getAlertLevel(product)}"
                                     data-product-id="${escapeHTML(product.id)}"
                                 >
-                                    <span class="round-alert-product-name">${escapeHTML(product.name)}</span>
-                                    <span class="round-alert-stock">${product.stock}개 남음</span>
+                                    <span class="round-alert-product-name">
+                                        ${escapeHTML(product.name)}
+                                    </span>
+
+                                    <span class="round-alert-stock">
+                                        ${product.stock}개 남음
+                                    </span>
                                 </button>
                             `).join("")}
                         </div>
@@ -858,12 +1159,16 @@ function renderTopAlerts() {
 
     toggle?.addEventListener("click", () => {
         const isOpen = details.classList.toggle("open");
+
         toggle.setAttribute("aria-expanded", String(isOpen));
     });
 
     area.querySelectorAll(".round-alert-product").forEach(button => {
         button.addEventListener("click", () => {
-            const product = products.find(item => item.id === button.dataset.productId);
+            const product = products.find(item => {
+                return item.id === button.dataset.productId;
+            });
+
             if (product) goToInventory(product);
         });
     });
@@ -875,17 +1180,25 @@ function renderTopAlerts() {
 
 function updateDashboard() {
     const productCount = products.length;
-    const lowStockProducts = products.filter(product => product.stock <= 5);
-    const lowStockCount = lowStockProducts.length;
 
-    const totalProfit = products.reduce((total, product) => {
-        return total + (product.price - product.cost) * product.stock;
-    }, 0);
+    const lowStockProducts = products.filter(product => {
+        return product.stock <= 5;
+    });
+
+    const lowStockCount = lowStockProducts.length;
 
     const recentSales = getRecentSales();
 
     const totalSales = recentSales.reduce((total, sale) => {
         return total + Number(sale.quantity) * Number(sale.salePrice);
+    }, 0);
+
+    const totalProfit = recentSales.reduce((total, sale) => {
+        const cost = Number(sale.costSnapshot) || 0;
+
+        return total + (
+            (Number(sale.salePrice) - cost) * Number(sale.quantity)
+        );
     }, 0);
 
     if ($("total-sales")) {
@@ -928,14 +1241,20 @@ function updateDashboard() {
                         data-product-id="${escapeHTML(product.id)}"
                     >
                         <strong>${escapeHTML(product.name)}</strong>
-                        <p>현재 재고가 ${product.stock}개입니다. 재고 상태를 확인해 주세요.</p>
+                        <p>
+                            현재 재고가 ${product.stock}개입니다.
+                            재고 상태를 확인해 주세요.
+                        </p>
                     </div>
                 `;
             }).join("");
 
             alertList.querySelectorAll(".dashboard-alert-item").forEach(card => {
                 card.addEventListener("click", () => {
-                    const product = products.find(item => item.id === card.dataset.productId);
+                    const product = products.find(item => {
+                        return item.id === card.dataset.productId;
+                    });
+
                     if (product) goToInventory(product);
                 });
             });
@@ -952,15 +1271,18 @@ function updateDashboard() {
 
 function renderSalesChart() {
     const chart = $("sales-chart");
+
     if (!chart) return;
 
     const today = new Date();
+
     today.setHours(0, 0, 0, 0);
 
     const dailySales = [];
 
     for (let i = 29; i >= 0; i--) {
         const date = new Date(today);
+
         date.setDate(today.getDate() - i);
 
         dailySales.push({
@@ -975,6 +1297,7 @@ function renderSalesChart() {
         if (!Number.isFinite(timestamp) || timestamp <= 0) return;
 
         const saleDate = new Date(timestamp);
+
         saleDate.setHours(0, 0, 0, 0);
 
         const day = dailySales.find(item => {
@@ -986,7 +1309,10 @@ function renderSalesChart() {
         }
     });
 
-    const maxSales = Math.max(...dailySales.map(item => item.sales), 1);
+    const maxSales = Math.max(
+        ...dailySales.map(item => item.sales),
+        1
+    );
 
     const chartWidth = 630;
     const chartLeft = 35;
@@ -1005,7 +1331,11 @@ function renderSalesChart() {
         .map(point => `${point.x},${point.y}`)
         .join(" ");
 
-    const areaPoints = `${chartLeft},${chartBottom} ${linePoints} ${chartLeft + chartWidth},${chartBottom}`;
+    const areaPoints = `
+        ${chartLeft},${chartBottom}
+        ${linePoints}
+        ${chartLeft + chartWidth},${chartBottom}
+    `;
 
     const gridLines = [25, 65, 105, 145].map(y => `
         <line
@@ -1021,6 +1351,7 @@ function renderSalesChart() {
         if (index % 5 !== 0 && index !== 29) return "";
 
         const x = chartLeft + (index * chartWidth / 29);
+
         const label = `${item.date.getMonth() + 1}/${item.date.getDate()}`;
 
         return `
@@ -1042,7 +1373,10 @@ function renderSalesChart() {
                 r="3"
                 class="sales-chart-point"
             >
-                <title>${point.item.date.toLocaleDateString("ko-KR")} · ${formatMoney(point.item.sales)}</title>
+                <title>
+                    ${point.item.date.toLocaleDateString("ko-KR")}
+                    · ${formatMoney(point.item.sales)}
+                </title>
             </circle>
         `).join("");
 
@@ -1074,7 +1408,7 @@ function renderSalesChart() {
 }
 
 // ========================================
-// 상품 목록 렌더링
+// 상품 목록
 // ========================================
 
 function renderProducts() {
@@ -1095,7 +1429,9 @@ function renderProducts() {
         }
 
         products.forEach((product, index) => {
-            const profit = (product.price - product.cost) * product.stock;
+            const profit = (
+                Number(product.price) - Number(product.cost)
+            ) * Number(product.stock);
 
             const row = document.createElement("tr");
 
@@ -1106,8 +1442,13 @@ function renderProducts() {
                 <td>${product.stock}개</td>
                 <td>${formatMoney(profit)}</td>
                 <td>
-                    <button class="edit-button" data-index="${index}">수정</button>
-                    <button class="delete-button" data-index="${index}">삭제</button>
+                    <button class="edit-button" data-index="${index}">
+                        수정
+                    </button>
+
+                    <button class="delete-button" data-index="${index}">
+                        삭제
+                    </button>
                 </td>
             `;
 
@@ -1119,7 +1460,7 @@ function renderProducts() {
 }
 
 // ========================================
-// 상품 등록 / 수정
+// 상품 등록 / 수정 공통
 // ========================================
 
 function resetForm() {
@@ -1138,6 +1479,7 @@ function resetForm() {
 
 function editProduct(index) {
     const product = products[index];
+
     if (!product) return;
 
     editingIndex = index;
@@ -1160,6 +1502,7 @@ function editProduct(index) {
 
 function deleteProduct(index) {
     const product = products[index];
+
     if (!product) return;
 
     const hasInventoryHistory = inventoryHistory.some(history => {
@@ -1171,7 +1514,11 @@ function deleteProduct(index) {
     });
 
     if (hasInventoryHistory || hasSalesHistory) {
-        alert("이 상품에는 입출고 또는 판매 기록이 있습니다.\n관련 기록을 먼저 삭제한 후 상품을 삭제해 주세요.");
+        alert(
+            "이 상품에는 입출고 또는 판매 기록이 있습니다.\n" +
+            "관련 기록을 먼저 삭제한 후 상품을 삭제해 주세요."
+        );
+
         return;
     }
 
@@ -1217,6 +1564,7 @@ function setupProductEvents() {
 
     productList?.addEventListener("click", event => {
         const button = event.target.closest("button");
+
         if (!button) return;
 
         const index = Number(button.dataset.index);
@@ -1232,6 +1580,7 @@ function setupProductEvents() {
 
     productForm?.addEventListener("submit", event => {
         event.preventDefault();
+        event.stopPropagation();
 
         const name = $("product-name").value.trim();
         const price = Number($("product-price").value);
@@ -1267,6 +1616,11 @@ function setupProductEvents() {
         if (previousIndex !== null) {
             const oldProduct = products[previousIndex];
 
+            if (!oldProduct) {
+                alert("수정할 상품을 찾을 수 없습니다.");
+                return;
+            }
+
             const stockDifference = stock - oldProduct.stock;
 
             products[previousIndex] = {
@@ -1274,7 +1628,6 @@ function setupProductEvents() {
                 name,
                 price,
                 cost,
-                stock,
                 baseStock: Number(oldProduct.baseStock) + stockDifference
             };
 
@@ -1300,11 +1653,21 @@ function setupProductEvents() {
             });
         }
 
+        if (!recalculateProductStocks()) {
+            products = previousProducts;
+            inventoryHistory = previousInventory;
+            salesHistory = previousSales;
+
+            alert("변경 후 재고가 음수가 됩니다. 수량을 다시 확인해 주세요.");
+
+            return;
+        }
+
         if (!saveAllData()) {
             products = previousProducts;
             inventoryHistory = previousInventory;
             salesHistory = previousSales;
-            saveAllData();
+
             return;
         }
 
@@ -1314,11 +1677,17 @@ function setupProductEvents() {
 
         productForm.reset();
         modal?.classList.remove("show");
+
         resetForm();
 
-        alert(previousIndex === null ? "상품이 등록되었습니다!" : "상품이 수정되었습니다!");
+        alert(
+            previousIndex === null
+                ? "상품이 등록되었습니다!"
+                : "상품이 수정되었습니다!"
+        );
     });
 }
+
 // ========================================
 // 재고 관리 이벤트
 // ========================================
@@ -1329,11 +1698,11 @@ function setupInventoryEvents() {
 
     form?.addEventListener("submit", event => {
         event.preventDefault();
+        event.stopPropagation();
 
         const productId = $("inventory-product").value;
         const type = $("inventory-type").value;
         const quantity = Number($("inventory-quantity").value);
-        const memo = $("inventory-memo")?.value.trim() || "";
 
         const product = products.find(item => item.id === productId);
 
@@ -1363,7 +1732,7 @@ function setupInventoryEvents() {
             productName: product.name,
             type,
             quantity,
-            memo,
+            memo: "",
             createdAt: Date.now(),
             date: new Date().toLocaleString("ko-KR")
         };
@@ -1377,15 +1746,16 @@ function setupInventoryEvents() {
         if (!recalculateProductStocks()) {
             inventoryHistory.pop();
             recalculateProductStocks();
+
             alert("재고를 계산할 수 없습니다. 입력 내용을 확인해 주세요.");
+
             return;
         }
 
-        if (!saveInventoryHistory() || !saveProducts()) {
+        if (!saveAllData()) {
             inventoryHistory.pop();
             recalculateProductStocks();
-            saveInventoryHistory();
-            saveProducts();
+
             return;
         }
 
@@ -1394,7 +1764,11 @@ function setupInventoryEvents() {
         renderProducts();
         renderInventoryHistory();
 
-        alert(type === "in" ? "입고가 등록되었습니다!" : "출고가 등록되었습니다!");
+        alert(
+            type === "in"
+                ? "입고가 등록되었습니다!"
+                : "출고가 등록되었습니다!"
+        );
     });
 
     historyList?.addEventListener("click", event => {
@@ -1414,7 +1788,7 @@ function setupInventoryEvents() {
 }
 
 // ========================================
-// 재고 기록 수정
+// 재고 기록 수정 모달
 // ========================================
 
 function setupInventoryEditModal() {
@@ -1436,6 +1810,7 @@ function setupInventoryEditModal() {
 
     form?.addEventListener("submit", event => {
         event.preventDefault();
+        event.stopPropagation();
 
         const history = inventoryHistory.find(item => {
             return item.id === editingHistoryId;
@@ -1468,15 +1843,16 @@ function setupInventoryEditModal() {
         if (!recalculateProductStocks()) {
             products = previousProducts;
             inventoryHistory = previousInventory;
+
             alert("이렇게 수정하면 재고가 음수가 되어 변경할 수 없습니다.");
+
             return;
         }
 
-        if (!saveProducts() || !saveInventoryHistory()) {
+        if (!saveAllData()) {
             products = previousProducts;
             inventoryHistory = previousInventory;
-            saveProducts();
-            saveInventoryHistory();
+
             return;
         }
 
@@ -1500,13 +1876,8 @@ function editInventoryHistory(historyId) {
 
     editingHistoryId = historyId;
 
-    if ($("edit-inventory-type")) {
-        $("edit-inventory-type").value = history.type;
-    }
-
-    if ($("edit-inventory-quantity")) {
-        $("edit-inventory-quantity").value = history.quantity;
-    }
+    $("edit-inventory-type").value = history.type;
+    $("edit-inventory-quantity").value = history.quantity;
 
     $("inventory-edit-modal")?.classList.add("show");
 }
@@ -1537,15 +1908,16 @@ function deleteInventoryHistory(historyId) {
     if (!recalculateProductStocks()) {
         products = previousProducts;
         inventoryHistory = previousHistory;
+
         alert("기록을 삭제할 수 없습니다.");
+
         return;
     }
 
-    if (!saveInventoryHistory() || !saveProducts()) {
+    if (!saveAllData()) {
         products = previousProducts;
         inventoryHistory = previousHistory;
-        saveInventoryHistory();
-        saveProducts();
+
         return;
     }
 
@@ -1561,6 +1933,7 @@ function deleteInventoryHistory(historyId) {
 
 function renderInventoryHistory() {
     const historyList = $("inventory-history");
+
     if (!historyList) return;
 
     historyList.innerHTML = "";
@@ -1575,6 +1948,7 @@ function renderInventoryHistory() {
                 <td colspan="6">아직 입출고 기록이 없습니다.</td>
             </tr>
         `;
+
         return;
     }
 
@@ -1590,22 +1964,27 @@ function renderInventoryHistory() {
 
         row.innerHTML = `
             <td>${escapeHTML(dateText)}</td>
+
             <td>${escapeHTML(history.productName || "삭제된 상품")}</td>
+
             <td>
                 <span class="history-type ${typeClass}">
                     ${typeText}
                 </span>
             </td>
+
             <td>${Number(history.quantity)}개</td>
-            <td>${escapeHTML(history.memo || "-")}</td>
+
+            <td>${Number(history.stockAfter ?? 0)}개</td>
+
             <td>
                 <button
-                    class="inventory-edit-button"
+                    class="inventory-edit-button history-edit-button"
                     data-id="${escapeHTML(history.id)}"
                 >수정</button>
 
                 <button
-                    class="inventory-delete-button"
+                    class="inventory-delete-button history-delete-button"
                     data-id="${escapeHTML(history.id)}"
                 >삭제</button>
             </td>
@@ -1632,6 +2011,7 @@ function setupSalesEvents() {
 
     form?.addEventListener("submit", event => {
         event.preventDefault();
+        event.stopPropagation();
 
         const productId = $("sales-product").value;
         const quantity = Number($("sales-quantity").value);
@@ -1676,15 +2056,16 @@ function setupSalesEvents() {
         if (!recalculateProductStocks()) {
             salesHistory.pop();
             recalculateProductStocks();
+
             alert("재고를 계산할 수 없습니다. 입력 내용을 확인해 주세요.");
+
             return;
         }
 
-        if (!saveSalesHistory() || !saveProducts()) {
+        if (!saveAllData()) {
             salesHistory.pop();
             recalculateProductStocks();
-            saveSalesHistory();
-            saveProducts();
+
             return;
         }
 
@@ -1716,6 +2097,7 @@ function setupSalesEvents() {
 
 function renderSalesHistory() {
     const historyList = $("sales-history");
+
     if (!historyList) return;
 
     historyList.innerHTML = "";
@@ -1730,6 +2112,7 @@ function renderSalesHistory() {
                 <td colspan="6">아직 판매 기록이 없습니다.</td>
             </tr>
         `;
+
         return;
     }
 
@@ -1742,10 +2125,15 @@ function renderSalesHistory() {
 
         row.innerHTML = `
             <td>${escapeHTML(dateText)}</td>
+
             <td>${escapeHTML(sale.productName || "삭제된 상품")}</td>
+
             <td>${Number(sale.quantity)}개</td>
+
             <td>${formatMoney(sale.salePrice)}</td>
+
             <td>${formatMoney(sale.quantity * sale.salePrice)}</td>
+
             <td>
                 <div class="history-action-buttons">
                     <button
@@ -1825,14 +2213,14 @@ function editSale(saleId) {
         salesHistory = previousSales;
 
         alert("수정할 수 없습니다. 변경 후 재고가 음수가 됩니다.");
+
         return;
     }
 
-    if (!saveProducts() || !saveSalesHistory()) {
+    if (!saveAllData()) {
         products = previousProducts;
         salesHistory = previousSales;
-        saveProducts();
-        saveSalesHistory();
+
         return;
     }
 
@@ -1854,7 +2242,9 @@ function deleteSale(saleId) {
         return;
     }
 
-    if (!confirm("이 판매 기록을 삭제할까요?\n삭제하면 해당 상품의 재고가 복구됩니다.")) {
+    if (!confirm(
+        "이 판매 기록을 삭제할까요?\n삭제하면 해당 상품의 재고가 복구됩니다."
+    )) {
         return;
     }
 
@@ -1868,14 +2258,14 @@ function deleteSale(saleId) {
         salesHistory = previousSales;
 
         alert("판매 기록을 삭제할 수 없습니다.");
+
         return;
     }
 
-    if (!saveProducts() || !saveSalesHistory()) {
+    if (!saveAllData()) {
         products = previousProducts;
         salesHistory = previousSales;
-        saveProducts();
-        saveSalesHistory();
+
         return;
     }
 
@@ -1906,7 +2296,8 @@ function goToInventory(product) {
 
         item.classList.toggle(
             "active",
-            href === "#inventory-section" || item.dataset.target === "inventory"
+            href === "#inventory-section" ||
+            item.dataset.target === "inventory"
         );
     });
 
@@ -1926,15 +2317,24 @@ function goToInventory(product) {
 // ========================================
 
 function initializeApp() {
-    migrateExistingData();
+    // 로그인/로그아웃 반복 시 이벤트 중복 등록 방지
+    if (appInitialized) {
+        renderProducts();
+        renderInventoryHistory();
+        renderSalesHistory();
+        updateDashboard();
 
-    const previousProducts = JSON.parse(JSON.stringify(products));
+        return;
+    }
+
+    appInitialized = true;
+
+    migrateExistingData();
 
     if (!recalculateProductStocks()) {
         console.warn("기존 재고 기록을 다시 계산하지 못했습니다.");
-        products = previousProducts;
     } else {
-        saveProducts();
+        saveAllData();
     }
 
     applyAlertStyles();
@@ -1947,9 +2347,10 @@ function initializeApp() {
     renderProducts();
     renderInventoryHistory();
     renderSalesHistory();
+
     updateDashboard();
 
-    console.log("ROUND STORE FREE 버전이 실행되었습니다.");
+    console.log("ROUND STORE STARTER 버전이 실행되었습니다.");
 }
 
 // ========================================
