@@ -65,6 +65,13 @@ function readLegacyBrowserData() {
     };
 }
 
+function clearGuestTrialData() {
+    // 현재 탭의 체험 데이터 삭제
+    Object.values(SESSION_KEYS).forEach(key => sessionStorage.removeItem(key));
+    // 구버전에서 localStorage에 저장했던 ROUND STORE 데이터만 삭제
+    Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
+}
+
 function writeGuestData() {
     try {
         sessionStorage.setItem(SESSION_KEYS.products, JSON.stringify(products));
@@ -189,18 +196,9 @@ async function activateUser(user) {
 }
 
 async function startGuestMode() {
-    let guestData = readGuestData();
-    if (!hasAnyData(guestData)) {
-        const legacy = readLegacyBrowserData();
-        if (hasAnyData(legacy)) {
-            guestData = legacy;
-            sessionStorage.setItem(SESSION_KEYS.products, JSON.stringify(legacy.products));
-            sessionStorage.setItem(SESSION_KEYS.inventory, JSON.stringify(legacy.inventoryHistory));
-            sessionStorage.setItem(SESSION_KEYS.sales, JSON.stringify(legacy.salesHistory));
-            showAuthMessage("기존 브라우저 데이터를 무료체험으로 불러왔습니다. 계정에 가입하면 클라우드에 저장할 수 있습니다.", true);
-        }
-    }
-    setData(guestData);
+    // 새 무료체험은 이전 체험 데이터나 과거 브라우저 데이터를 불러오지 않고 빈 상태로 시작
+    clearGuestTrialData();
+    setData({ products: [], inventoryHistory: [], salesHistory: [] });
     storageMode = "guest";
     showApp("● 무료체험 · 임시 저장");
 }
@@ -253,9 +251,7 @@ function setupAuthUI() {
 
     $("logout-button")?.addEventListener("click", async () => {
         if (storageMode === "guest") {
-            sessionStorage.removeItem(SESSION_KEYS.products);
-            sessionStorage.removeItem(SESSION_KEYS.inventory);
-            sessionStorage.removeItem(SESSION_KEYS.sales);
+            clearGuestTrialData();
         } else {
             await supabaseClient.auth.signOut();
         }
@@ -786,7 +782,6 @@ function applyAlertStyles() {
 
     document.head.appendChild(style);
 }
-
 function getAlertLevel(product) {
     if (product.stock <= 0) return "danger";
     if (product.stock <= 3) return "urgent";
@@ -1324,7 +1319,6 @@ function setupProductEvents() {
         alert(previousIndex === null ? "상품이 등록되었습니다!" : "상품이 수정되었습니다!");
     });
 }
-
 // ========================================
 // 재고 관리 이벤트
 // ========================================
