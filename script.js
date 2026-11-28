@@ -2,7 +2,7 @@
 // ========================================
 // ROUND STORE - STARTER VERSION
 // 상품 관리 + 재고 관리 + 판매 관리
-// 안정성 개선 버전
+// 월별 대시보드 적용 버전
 // ========================================
 
 const $ = (id) => document.getElementById(id);
@@ -530,24 +530,60 @@ function escapeHTML(value) {
     });
 }
 
-function getThirtyDayStart() {
-    const date = new Date();
+// ========================================
+// 월별 매출 계산
+// ========================================
 
-    date.setHours(0, 0, 0, 0);
-    date.setDate(date.getDate() - 29);
+function getCurrentMonthRange() {
+    const now = new Date();
 
-    return date.getTime();
+    const start = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        1
+    );
+
+    const nextMonth = new Date(
+        now.getFullYear(),
+        now.getMonth() + 1,
+        1
+    );
+
+    const totalDays = new Date(
+        now.getFullYear(),
+        now.getMonth() + 1,
+        0
+    ).getDate();
+
+    return {
+        start: start.getTime(),
+        end: nextMonth.getTime(),
+        elapsedDays: now.getDate(),
+        totalDays,
+        monthLabel: `${now.getMonth() + 1}월`
+    };
 }
 
-function getRecentSales() {
-    const start = getThirtyDayStart();
-    const now = Date.now();
+function getCurrentMonthSales() {
+    const month = getCurrentMonthRange();
 
     return salesHistory.filter(sale => {
-        const createdAt = Number(sale.createdAt) || 0;
+        const createdAt = Number(sale.createdAt);
 
-        return createdAt >= start && createdAt <= now;
+        return (
+            Number.isFinite(createdAt) &&
+            createdAt >= month.start &&
+            createdAt < month.end
+        );
     });
+}
+
+function hasValidCostSnapshot(sale) {
+    return (
+        sale.costSnapshot !== undefined &&
+        sale.costSnapshot !== null &&
+        Number.isFinite(Number(sale.costSnapshot))
+    );
 }
 
 // ========================================
@@ -1175,7 +1211,7 @@ function renderTopAlerts() {
 }
 
 // ========================================
-// 대시보드
+// 대시보드 - 월별 통계
 // ========================================
 
 function updateDashboard() {
@@ -1187,22 +1223,68 @@ function updateDashboard() {
 
     const lowStockCount = lowStockProducts.length;
 
-    const recentSales = getRecentSales();
+    const month = getCurrentMonthRange();
+    const monthSales = getCurrentMonthSales();
 
-    const totalSales = recentSales.reduce((total, sale) => {
-        return total + Number(sale.quantity) * Number(sale.salePrice);
-    }, 0);
-
-    const totalProfit = recentSales.reduce((total, sale) => {
-        const cost = Number(sale.costSnapshot) || 0;
-
+    // 이번 달 누적 매출
+    const monthRevenue = monthSales.reduce((total, sale) => {
         return total + (
-            (Number(sale.salePrice) - cost) * Number(sale.quantity)
+            Number(sale.quantity) * Number(sale.salePrice)
         );
     }, 0);
 
+    // 원가 기록이 있는 판매만으로 이익 계산
+    const monthProfit = monthSales
+        .filter(hasValidCostSnapshot)
+        .reduce((total, sale) => {
+            const cost = Number(sale.costSnapshot);
+
+            return total + (
+                (Number(sale.salePrice) - cost) *
+                Number(sale.quantity)
+            );
+        }, 0);
+
+    // 현재 판매 속도 기준 월말 예상치
+    const estimatedRevenue =
+        month.elapsedDays > 0
+            ? (monthRevenue / month.elapsedDays) * month.totalDays
+            : 0;
+
+    const estimatedProfit =
+        month.elapsedDays > 0
+            ? (monthProfit / month.elapsedDays) * month.totalDays
+            : 0;
+
+    // 월별 제목 변경
+    if ($("estimated-sales-label")) {
+        $("estimated-sales-label").textContent =
+            `${month.monthLabel} 예상 매출`;
+    }
+
+    if ($("month-total-sales-label")) {
+        $("month-total-sales-label").textContent =
+            `${month.monthLabel} 누적 매출`;
+    }
+
+    if ($("estimated-profit-label")) {
+        $("estimated-profit-label").textContent =
+            `${month.monthLabel} 예상 이익`;
+    }
+
+    // 예상 매출
     if ($("total-sales")) {
-        $("total-sales").textContent = formatMoney(totalSales);
+        $("total-sales").textContent = formatMoney(estimatedRevenue);
+    }
+
+    // 실제 누적 매출
+    if ($("month-total-sales")) {
+        $("month-total-sales").textContent = formatMoney(monthRevenue);
+    }
+
+    // 예상 이익
+    if ($("total-profit")) {
+        $("total-profit").textContent = formatMoney(estimatedProfit);
     }
 
     if ($("product-count")) {
@@ -1211,10 +1293,6 @@ function updateDashboard() {
 
     if ($("low-stock")) {
         $("low-stock").textContent = lowStockCount + "개";
-    }
-
-    if ($("total-profit")) {
-        $("total-profit").textContent = formatMoney(totalProfit);
     }
 
     if ($("alert-count")) {
@@ -1261,150 +1339,8 @@ function updateDashboard() {
         }
     }
 
-    renderSalesChart();
+    // Starter 버전에서는 그래프를 호출하지 않음
     renderTopAlerts();
-}
-
-// ========================================
-// 최근 30일 매출 그래프
-// ========================================
-
-function renderSalesChart() {
-    const chart = $("sales-chart");
-
-    if (!chart) return;
-
-    const today = new Date();
-
-    today.setHours(0, 0, 0, 0);
-
-    const dailySales = [];
-
-    for (let i = 29; i >= 0; i--) {
-        const date = new Date(today);
-
-        date.setDate(today.getDate() - i);
-
-        dailySales.push({
-            date,
-            sales: 0
-        });
-    }
-
-    getRecentSales().forEach(sale => {
-        const timestamp = Number(sale.createdAt);
-
-        if (!Number.isFinite(timestamp) || timestamp <= 0) return;
-
-        const saleDate = new Date(timestamp);
-
-        saleDate.setHours(0, 0, 0, 0);
-
-        const day = dailySales.find(item => {
-            return item.date.getTime() === saleDate.getTime();
-        });
-
-        if (day) {
-            day.sales += Number(sale.quantity) * Number(sale.salePrice);
-        }
-    });
-
-    const maxSales = Math.max(
-        ...dailySales.map(item => item.sales),
-        1
-    );
-
-    const chartWidth = 630;
-    const chartLeft = 35;
-    const chartTop = 25;
-    const chartBottom = 145;
-    const chartHeight = chartBottom - chartTop;
-
-    const coordinates = dailySales.map((item, index) => {
-        const x = chartLeft + (index * chartWidth / 29);
-        const y = chartBottom - (item.sales / maxSales) * chartHeight;
-
-        return { x, y, item };
-    });
-
-    const linePoints = coordinates
-        .map(point => `${point.x},${point.y}`)
-        .join(" ");
-
-    const areaPoints = `
-        ${chartLeft},${chartBottom}
-        ${linePoints}
-        ${chartLeft + chartWidth},${chartBottom}
-    `;
-
-    const gridLines = [25, 65, 105, 145].map(y => `
-        <line
-            x1="${chartLeft}"
-            y1="${y}"
-            x2="${chartLeft + chartWidth}"
-            y2="${y}"
-            class="sales-chart-grid"
-        />
-    `).join("");
-
-    const labels = dailySales.map((item, index) => {
-        if (index % 5 !== 0 && index !== 29) return "";
-
-        const x = chartLeft + (index * chartWidth / 29);
-
-        const label = `${item.date.getMonth() + 1}/${item.date.getDate()}`;
-
-        return `
-            <text
-                x="${x}"
-                y="178"
-                text-anchor="middle"
-                class="sales-chart-label"
-            >${label}</text>
-        `;
-    }).join("");
-
-    const points = coordinates
-        .filter(point => point.item.sales > 0)
-        .map(point => `
-            <circle
-                cx="${point.x}"
-                cy="${point.y}"
-                r="3"
-                class="sales-chart-point"
-            >
-                <title>
-                    ${point.item.date.toLocaleDateString("ko-KR")}
-                    · ${formatMoney(point.item.sales)}
-                </title>
-            </circle>
-        `).join("");
-
-    const hasSales = dailySales.some(item => item.sales > 0);
-
-    chart.classList.add("has-data");
-
-    chart.innerHTML = `
-        <svg
-            class="sales-chart-svg"
-            viewBox="0 0 700 195"
-            role="img"
-            aria-label="최근 30일 날짜별 매출 그래프"
-        >
-            ${gridLines}
-            <polygon points="${areaPoints}" class="sales-chart-area"></polygon>
-            <polyline points="${linePoints}" class="sales-chart-line"></polyline>
-            ${points}
-            ${labels}
-        </svg>
-
-        ${!hasSales ? `
-            <div class="chart-message">
-                <strong>아직 매출 데이터가 없습니다.</strong>
-                <small>판매를 등록하면 그래프가 업데이트됩니다.</small>
-            </div>
-        ` : ""}
-    `;
 }
 
 // ========================================
