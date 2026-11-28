@@ -9,7 +9,6 @@
 </head>
 <body>
 
-<!-- 로그인 전 시작 화면 -->
 <section class="auth-screen" id="auth-screen">
     <div class="auth-card">
         <div class="auth-brand"><span class="auth-logo">R</span><span>ROUND STORE</span></div>
@@ -29,6 +28,7 @@
             <input type="password" id="auth-password" placeholder="8자 이상" minlength="8" autocomplete="current-password" required>
             <button type="submit" class="auth-primary" id="auth-submit">로그인</button>
         </form>
+
         <p class="auth-message" id="auth-message" role="status"></p>
         <div class="auth-divider"><span>또는</span></div>
         <button type="button" class="auth-guest" id="start-guest">무료체험 시작하기</button>
@@ -37,8 +37,6 @@
 </section>
 
 <div class="app" id="main-app">
-
-    <!-- 사이드바 -->
     <aside class="sidebar">
         <div class="logo">
             <div class="logo-icon">R</div>
@@ -65,10 +63,7 @@
         </div>
     </aside>
 
-    <!-- 메인 -->
     <main class="main">
-
-        <!-- 상단 -->
         <header class="topbar">
             <div>
                 <h1 id="page-title">Dashboard</h1>
@@ -81,9 +76,7 @@
             </div>
         </header>
 
-        <!-- 대시보드 -->
         <section id="dashboard-section">
-
             <div class="welcome">
                 <div>
                     <h2>Welcome to ROUND STORE 👋</h2>
@@ -93,23 +86,31 @@
             </div>
 
             <div class="stats">
-
                 <div class="stat-card">
                     <div class="stat-top">
-                        <span>최근 30일 매출</span>
+                        <span id="estimated-sales-label">이번 달 예상 매출</span>
                         <span class="stat-icon purple">₩</span>
                     </div>
                     <h2 id="total-sales">0원</h2>
-                    <small>최근 30일 판매 기준</small>
+                    <small>현재 판매 속도 기준 월말 예상</small>
                 </div>
 
                 <div class="stat-card">
                     <div class="stat-top">
-                        <span>전체 예상 이익</span>
+                        <span id="month-total-sales-label">이번 달 누적 매출</span>
+                        <span class="stat-icon blue">₩</span>
+                    </div>
+                    <h2 id="month-total-sales">0원</h2>
+                    <small>이번 달 실제 판매 금액</small>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-top">
+                        <span id="estimated-profit-label">이번 달 예상 이익</span>
                         <span class="stat-icon green">↗</span>
                     </div>
                     <h2 id="total-profit">0원</h2>
-                    <small>현재 재고 기준 예상 이익</small>
+                    <small>원가 기록이 있는 판매 기준</small>
                 </div>
 
                 <div class="stat-card">
@@ -129,30 +130,9 @@
                     <h2 id="product-count">0개</h2>
                     <small>현재 등록된 상품 수</small>
                 </div>
-
             </div>
 
-            <!-- 그래프 및 알림 -->
-            <div class="content-grid">
-
-                <div class="panel">
-                    <div class="panel-header">
-                        <div>
-                            <h3>매출 추이</h3>
-                            <p>최근 30일 매출 현황</p>
-                        </div>
-                        <span class="period">최근 30일</span>
-                    </div>
-
-                    <div class="empty-chart" id="sales-chart">
-                        <div class="chart-message">
-                            <span>▥</span>
-                            <strong>아직 판매 데이터가 없습니다.</strong>
-                            <small>판매를 등록하면 그래프가 표시됩니다.</small>
-                        </div>
-                    </div>
-                </div>
-
+            <div class="content-grid" style="grid-template-columns: 1fr;">
                 <div class="panel">
                     <div class="panel-header">
                         <div>
@@ -170,22 +150,16 @@
 
                     <div id="alert-list"></div>
                 </div>
-
             </div>
         </section>
 
-        <!-- 상품 관리 -->
         <section class="panel product-section" id="product-section">
-
             <div class="panel-header">
                 <div>
                     <h3>상품 관리</h3>
                     <p>상품 정보와 판매 가격을 관리합니다.</p>
                 </div>
-
-                <button class="add-button" id="open-modal">
-                    + 상품 등록
-                </button>
+                <button class="add-button" id="open-modal">+ 상품 등록</button>
             </div>
 
             <div class="table-wrap">
@@ -200,16 +174,12 @@
                             <th>관리</th>
                         </tr>
                     </thead>
-
                     <tbody id="product-list"></tbody>
                 </table>
             </div>
-
         </section>
 
-        <!-- 재고 관리 -->
         <section class="panel product-section" id="inventory-section">
-
             <div class="panel-header">
                 <div>
                     <h3>재고 관리</h3>
@@ -218,7 +188,6 @@
             </div>
 
             <form class="inventory-form" id="inventory-form">
-
                 <div>
                     <label for="inventory-product">상품 선택</label>
                     <select id="inventory-product" required>
@@ -236,19 +205,10 @@
 
                 <div>
                     <label for="inventory-quantity">수량</label>
-                    <input
-                        type="number"
-                        id="inventory-quantity"
-                        min="1"
-                        placeholder="수량 입력"
-                        required
-                    >
+                    <input type="number" id="inventory-quantity" min="1" placeholder="수량 입력" required>
                 </div>
 
-                <button type="submit" class="add-button">
-                    기록 추가
-                </button>
-
+                <button type="submit" class="add-button">기록 추가</button>
             </form>
 
             <div class="inventory-history-header">
@@ -272,16 +232,12 @@
                             <th>관리</th>
                         </tr>
                     </thead>
-
                     <tbody id="inventory-history"></tbody>
                 </table>
             </div>
-
         </section>
 
-        <!-- 판매 관리 -->
         <section class="panel product-section" id="sales-section">
-
             <div class="panel-header">
                 <div>
                     <h3>판매 관리</h3>
@@ -290,7 +246,6 @@
             </div>
 
             <form class="inventory-form" id="sales-form">
-
                 <div>
                     <label for="sales-product">상품 선택</label>
                     <select id="sales-product" required>
@@ -300,24 +255,12 @@
 
                 <div>
                     <label for="sales-quantity">판매 수량</label>
-                    <input
-                        type="number"
-                        id="sales-quantity"
-                        min="1"
-                        placeholder="수량 입력"
-                        required
-                    >
+                    <input type="number" id="sales-quantity" min="1" placeholder="수량 입력" required>
                 </div>
 
                 <div>
                     <label for="sales-price">판매 단가</label>
-                    <input
-                        type="number"
-                        id="sales-price"
-                        min="0"
-                        placeholder="판매 가격"
-                        required
-                    >
+                    <input type="number" id="sales-price" min="0" placeholder="판매 가격" required>
                 </div>
 
                 <div>
@@ -325,10 +268,7 @@
                     <strong id="sales-total">0원</strong>
                 </div>
 
-                <button type="submit" class="add-button">
-                    판매 등록
-                </button>
-
+                <button type="submit" class="add-button">판매 등록</button>
             </form>
 
             <div class="panel-header">
@@ -350,92 +290,50 @@
                             <th>관리</th>
                         </tr>
                     </thead>
-
                     <tbody id="sales-history"></tbody>
                 </table>
             </div>
-
         </section>
 
         <footer>
             © 2026 ROUND STORE. All rights reserved.
         </footer>
-
     </main>
 </div>
 
-<!-- 상품 등록 및 수정 모달 -->
 <div class="modal" id="product-modal">
-
     <div class="modal-box">
-
         <div class="modal-header">
             <h2 id="modal-title">상품 등록</h2>
             <button class="close-button" id="close-modal" type="button">×</button>
         </div>
 
         <form id="product-form">
-
             <label for="product-name">상품명</label>
-            <input
-                type="text"
-                id="product-name"
-                placeholder="상품명을 입력하세요"
-                required
-            >
+            <input type="text" id="product-name" placeholder="상품명을 입력하세요" required>
 
             <label for="product-price">판매 가격</label>
-            <input
-                type="number"
-                id="product-price"
-                min="0"
-                placeholder="판매 가격"
-                required
-            >
+            <input type="number" id="product-price" min="0" placeholder="판매 가격" required>
 
             <label for="product-cost">상품 원가</label>
-            <input
-                type="number"
-                id="product-cost"
-                min="0"
-                placeholder="상품 원가"
-                required
-            >
+            <input type="number" id="product-cost" min="0" placeholder="상품 원가" required>
 
             <label for="product-stock">현재 재고</label>
-            <input
-                type="number"
-                id="product-stock"
-                min="0"
-                placeholder="재고 수량"
-                required
-            >
+            <input type="number" id="product-stock" min="0" placeholder="재고 수량" required>
 
-            <button type="submit" class="submit-button" id="submit-button">
-                상품 등록
-            </button>
-
+            <button type="submit" class="submit-button" id="submit-button">상품 등록</button>
         </form>
-
     </div>
 </div>
 
-<!-- 입출고 수정 모달 -->
 <div class="modal" id="inventory-edit-modal">
-
     <div class="modal-box">
-
         <div class="modal-header">
             <h2>입출고 기록 수정</h2>
-            <button
-                class="close-button"
-                id="close-inventory-modal"
-                type="button"
-            >×</button>
+            <button class="close-button" id="close-inventory-modal" type="button">×</button>
         </div>
 
         <form id="inventory-edit-form">
-
             <label for="edit-inventory-type">유형</label>
             <select id="edit-inventory-type" required>
                 <option value="in">입고</option>
@@ -443,24 +341,14 @@
             </select>
 
             <label for="edit-inventory-quantity">수량</label>
-            <input
-                type="number"
-                id="edit-inventory-quantity"
-                min="1"
-                required
-            >
+            <input type="number" id="edit-inventory-quantity" min="1" required>
 
-            <button type="submit" class="submit-button">
-                수정 저장
-            </button>
-
+            <button type="submit" class="submit-button">수정 저장</button>
         </form>
-
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="script.js"></script>
-
 </body>
 </html>
